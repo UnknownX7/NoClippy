@@ -1,0 +1,64 @@
+name: Upload to Plugin Repository
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  SOLUTION_NAME: NoClippy
+  INTERNAL_NAME: NoClippy
+  RELEASE_DIR: ./Publish
+  PERSONAL_PLUGIN_REPO: UnknownX7/DalamudPluginRepo
+
+jobs:
+  build:
+    runs-on: [windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.0.2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v1.0.5
+
+      - name: Restore NuGet Packages
+        run: nuget restore ${{ env.SOLUTION_NAME }}.sln
+
+      - name: Download Dalamud
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev\"
+
+      - name: Build
+        run: msbuild ${{ env.SOLUTION_NAME }}.sln /p:Configuration=Release
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v2.2.1
+        with:
+          path: ${{ env.RELEASE_DIR }}/*
+
+  deploy:
+    needs: build
+    runs-on: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: ${{ env.PERSONAL_PLUGIN_REPO }}
+        token: ${{ secrets.PAT }}
+
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifact
+        path: plugins/${{ env.INTERNAL_NAME }}
+
+    - uses: EndBug/add-and-commit@v7
+      with:
+        add: --all
+        author_name: GitHub Action
+        author_email: github-actions[bot]@users.noreply.github.com
+        branch: master
+        message: Update ${{ env.INTERNAL_NAME }}

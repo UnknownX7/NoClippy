@@ -1,0 +1,11 @@
+﻿{
+  "Author": "UnknownX",
+  "Name": "NoClippy",
+  "Description": "Reduces the effects of lag on weaving, significantly lowering the chances of clipping. Does the same thing as XivAlexander, do NOT attempt to use both.",
+  "InternalName": "NoClippy",
+  "AssemblyVersion": "",
+  "RepoUrl": "https://github.com/UnknownX7/NoClippy",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 3,
+  "LoadPriority": 0
+}
