@@ -5,7 +5,7 @@ using Dalamud.Hooking;
 using Dalamud.Plugin;
 
 [assembly: AssemblyTitle("NoClippy")]
-[assembly: AssemblyVersion("0.1.0.0")]
+[assembly: AssemblyVersion("0.1.1.0")]
 
 namespace NoClippy
 {
@@ -32,6 +32,16 @@ namespace NoClippy
 
         private IntPtr isCastingPtr;
         private unsafe ref bool IsCasting => ref *(bool*)isCastingPtr;
+
+        private IntPtr isQueuedPtr;
+        private unsafe ref bool IsQueued => ref *(bool*)isQueuedPtr;
+
+        private IntPtr actionCountPtr;
+        private unsafe ref ushort ActionCount => ref *(ushort*)actionCountPtr;
+
+        private IntPtr isGCDRecastActivePtr;
+        private unsafe ref bool IsGCDRecastActive => ref *(bool*)isGCDRecastActivePtr;
+
 
         private IntPtr defaultClientAnimationLockPtr;
         public unsafe float DefaultClientAnimationLock
@@ -63,6 +73,8 @@ namespace NoClippy
         private delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
         private static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
 
+        private ushort lastDetectedClip = 0;
+
         public void Initialize(DalamudPluginInterface p)
         {
             Plugin = this;
@@ -78,12 +90,16 @@ namespace NoClippy
                 var actionManager = Interface.TargetModuleScanner.GetStaticAddressFromSig("41 0F B7 57 04"); // g_ActionManager
                 animationLockPtr = actionManager + 0x8;
                 isCastingPtr = actionManager + 0x28;
+                isQueuedPtr = actionManager + 0x68;
+                actionCountPtr = actionManager + 0x110;
+                isGCDRecastActivePtr = actionManager + 0x610;
+                // 0x614 is previous gcd skill, 0x618 is current gcd recast time (counts up), 0x61C is gcd recast (counted up to)
                 ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
 
                 shortClientAnimationLockPtr = Interface.TargetModuleScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F");
                 defaultClientAnimationLockPtr = shortClientAnimationLockPtr + 0xA;
 
-                PluginLog.Error($"{DefaultClientAnimationLock} {ShortClientAnimationLock}");
+                Interface.Framework.OnUpdateEvent += Update;
 
                 if (!Config.Enable) return;
 
@@ -140,7 +156,7 @@ namespace NoClippy
             var spikeDelay = responseTime - reduction;
             PluginLog.LogInformation($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}Response: {F2MS(responseTime)} ({F2MS(delay)}) >" +
                 $" {F2MS(simDelay + spikeDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms" +
-                $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ms");
+                $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock) - 1}) ms");
         }
 
         [Command("/noclippy")]
@@ -189,11 +205,29 @@ namespace NoClippy
         public static void PrintEcho(string message) => Interface.Framework.Gui.Chat.Print($"[NoClippy] {message}");
         public static void PrintError(string message) => Interface.Framework.Gui.Chat.PrintError($"[NoClippy] {message}");
 
+        private void Update(Dalamud.Game.Internal.Framework framework)
+        {
+            DetectClipping();
+        }
+
+        private void DetectClipping()
+        {
+            if (!Config.EnableLogging || lastDetectedClip == ActionCount || IsGCDRecastActive || AnimationLock <= 0) return;
+
+            if (AnimationLock != 0.1f) // TODO need better way of detecting cast tax, IsCasting is not reliable here
+                PluginLog.LogInformation($"GCD Clip: {F2MS(AnimationLock)} ms");
+
+            lastDetectedClip = ActionCount;
+        }
+
         #region IDisposable Support
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing) return;
             commandManager.Dispose();
+
+            Interface.Framework.OnUpdateEvent -= Update;
+
             ReceiveActionEffectHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;
             Interface.SavePluginConfig(Config);
