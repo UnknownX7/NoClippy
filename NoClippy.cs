@@ -1,11 +1,12 @@
 using System;
 using System.Reflection;
 using Dalamud;
+using Dalamud.Game.ClientState;
 using Dalamud.Hooking;
 using Dalamud.Plugin;
 
 [assembly: AssemblyTitle("NoClippy")]
-[assembly: AssemblyVersion("0.1.1.0")]
+[assembly: AssemblyVersion("0.1.2.0")]
 
 namespace NoClippy
 {
@@ -32,6 +33,9 @@ namespace NoClippy
 
         private IntPtr isCastingPtr;
         private unsafe ref bool IsCasting => ref *(bool*)isCastingPtr;
+
+        private IntPtr comboTimerPtr;
+        private unsafe ref float ComboTimer => ref *(float*)comboTimerPtr;
 
         private IntPtr isQueuedPtr;
         private unsafe ref bool IsQueued => ref *(bool*)isQueuedPtr;
@@ -74,6 +78,7 @@ namespace NoClippy
         private static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
 
         private ushort lastDetectedClip = 0;
+        private float currentWastedGCD = 0;
 
         public void Initialize(DalamudPluginInterface p)
         {
@@ -90,6 +95,7 @@ namespace NoClippy
                 var actionManager = Interface.TargetModuleScanner.GetStaticAddressFromSig("41 0F B7 57 04"); // g_ActionManager
                 animationLockPtr = actionManager + 0x8;
                 isCastingPtr = actionManager + 0x28;
+                comboTimerPtr = actionManager + 0x60;
                 isQueuedPtr = actionManager + 0x68;
                 actionCountPtr = actionManager + 0x110;
                 isGCDRecastActivePtr = actionManager + 0x610;
@@ -207,17 +213,35 @@ namespace NoClippy
 
         private void Update(Dalamud.Game.Internal.Framework framework)
         {
+            if (!Config.EnableLogging) return;
             DetectClipping();
+            DetectWastedGCD();
         }
 
         private void DetectClipping()
         {
-            if (!Config.EnableLogging || lastDetectedClip == ActionCount || IsGCDRecastActive || AnimationLock <= 0) return;
+            if (!Interface.ClientState.Condition[ConditionFlag.InCombat] || lastDetectedClip == ActionCount || IsGCDRecastActive || AnimationLock <= 0) return;
 
-            if (AnimationLock != 0.1f) // TODO need better way of detecting cast tax, IsCasting is not reliable here
+            if (AnimationLock != 0.1f) // TODO need better way of detecting cast tax, IsCasting is not reliable here, additionally, this will detect LB
                 PluginLog.LogInformation($"GCD Clip: {F2MS(AnimationLock)} ms");
 
             lastDetectedClip = ActionCount;
+        }
+
+        private void DetectWastedGCD()
+        {
+            if (!Interface.ClientState.Condition[ConditionFlag.InCombat]) { currentWastedGCD = 0; return; }
+
+            if (!IsGCDRecastActive && !IsQueued)
+            {
+                if (AnimationLock > 0) return;
+                currentWastedGCD += ImGuiNET.ImGui.GetIO().DeltaTime;
+            }
+            else if (currentWastedGCD > 0)
+            {
+                PluginLog.LogInformation($"Wasted GCD: {F2MS(currentWastedGCD)} ms");
+                currentWastedGCD = 0;
+            }
         }
 
         #region IDisposable Support
