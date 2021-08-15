@@ -6,7 +6,7 @@ using Dalamud.Hooking;
 using Dalamud.Plugin;
 
 [assembly: AssemblyTitle("NoClippy")]
-[assembly: AssemblyVersion("0.1.2.1")]
+[assembly: AssemblyVersion("0.1.2.2")]
 
 namespace NoClippy
 {
@@ -161,7 +161,7 @@ namespace NoClippy
 
             var spikeDelay = responseTime - reduction;
             PluginLog.LogInformation($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}Response: {F2MS(responseTime)} ({F2MS(delay)}) >" +
-                $" {F2MS(simDelay + spikeDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms{(Config.EnableDryRun && newLock <= 0.6f && newLock % 0.01 is >= 0.0005f and <= 0.0095f ? $" [Alexander: {F2MS(Math.Min(reduction, delay) - (0.6f - newLock))} ms]" : string.Empty)}" +
+                $" {F2MS(simDelay + spikeDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms{(Config.EnableDryRun && newLock <= 0.6f && newLock % 0.01 is >= 0.0005f and <= 0.0095f ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
                 $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock) - 1}) ms");
         }
 
