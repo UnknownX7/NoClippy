@@ -4,9 +4,11 @@ using Dalamud;
 using Dalamud.Game.ClientState;
 using Dalamud.Hooking;
 using Dalamud.Plugin;
+using ImGuiNET;
+using ImPlotNET;
 
 [assembly: AssemblyTitle("NoClippy")]
-[assembly: AssemblyVersion("0.1.2.2")]
+[assembly: AssemblyVersion("0.2.0.0")]
 
 namespace NoClippy
 {
@@ -17,6 +19,8 @@ namespace NoClippy
         private PluginCommandManager commandManager;
         public static Configuration Config { get; private set; }
         public static NoClippy Plugin { get; private set; }
+
+        private IntPtr _imPlotContext;
 
         // This is the typical time range that passes between the time when the client sets a lock and then receives the new lock from the server on a low ping environment
         // This data is an estimate of what near 0 ping would be, based on 20 ms ping logs (feel free to show me logs if you actually have near 0 ms ping)
@@ -77,8 +81,11 @@ namespace NoClippy
         private delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
         private static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
 
+        private DateTime begunEncounter = DateTime.MinValue;
         private ushort lastDetectedClip = 0;
         private float currentWastedGCD = 0;
+        private float encounterTotalClip = 0;
+        private float encounterTotalWaste = 0;
 
         public void Initialize(DalamudPluginInterface p)
         {
@@ -89,6 +96,10 @@ namespace NoClippy
             Config.Initialize(Interface);
 
             commandManager = new();
+
+            ImPlot.SetImGuiContext(ImGui.GetCurrentContext());
+            _imPlotContext = ImPlot.CreateContext();
+            ImPlot.SetCurrentContext(_imPlotContext);
 
             try
             {
@@ -106,11 +117,13 @@ namespace NoClippy
                 defaultClientAnimationLockPtr = shortClientAnimationLockPtr + 0xA;
 
                 Interface.Framework.OnUpdateEvent += Update;
+                Interface.UiBuilder.OnBuildUi += PluginUI.Draw;
+
+                DefaultClientAnimationLock = 0.6f; // Yes, I am going to make the clientside default the same as the server default
 
                 if (!Config.Enable) return;
 
-                DefaultClientAnimationLock = 0.6f; // Yes, I am going to make the clientside default the same as the server default
-                ReceiveActionEffectHook.Enable();
+                TogglePlugin(true);
             }
             catch { PrintError("Failed to load!"); }
         }
@@ -131,7 +144,7 @@ namespace NoClippy
             if (IsCasting || newLock <= 0.11f) // Unfortunately this isn't always true for casting if the user is above 500 ms ping
             {
                 if (Config.EnableLogging)
-                    PluginLog.LogInformation($"Ignored reducing server cast lock of {F2MS(newLock)} ms");
+                    PrintLog($"Ignored reducing server cast lock of {F2MS(newLock)} ms");
                 return;
             }
 
@@ -160,13 +173,14 @@ namespace NoClippy
             if (!Config.EnableLogging && oldLock != 0) return;
 
             var spikeDelay = responseTime - reduction;
-            PluginLog.LogInformation($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}Response: {F2MS(responseTime)} ({F2MS(delay)}) >" +
-                $" {F2MS(simDelay + spikeDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms{(Config.EnableDryRun && newLock <= 0.6f && newLock % 0.01 is >= 0.0005f and <= 0.0095f ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
+            PrintLog($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}" +
+                $"Response: {F2MS(responseTime)} ({F2MS(delay)}) > {F2MS(simDelay + spikeDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms" +
+                $"{(Config.EnableDryRun && newLock <= 0.6f && newLock % 0.01 is >= 0.0005f and <= 0.0095f ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
                 $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock) - 1}) ms");
         }
 
         [Command("/noclippy")]
-        [HelpMessage("/noclippy [on|off|toggle|log]")]
+        [HelpMessage("/noclippy [on|off|toggle|dry|help] - Toggles the config window if no option is specified.")]
         private void OnNoClippy(string command, string argument)
         {
             switch (argument)
@@ -174,35 +188,28 @@ namespace NoClippy
                 case "on":
                 case "toggle" when !Config.Enable:
                 case "t" when !Config.Enable:
-                    DefaultClientAnimationLock = 0.6f;
-                    ReceiveActionEffectHook?.Enable();
-                    Config.Enable = true;
+                    TogglePlugin(Config.Enable = true);
                     Config.Save();
                     PrintEcho("Enabled!");
                     break;
                 case "off":
                 case "toggle" when Config.Enable:
                 case "t" when Config.Enable:
-                    ReceiveActionEffectHook?.Disable();
-                    DefaultClientAnimationLock = 0.5f;
-                    Config.Enable = false;
+                    TogglePlugin(Config.Enable = false);
                     Config.Save();
                     PrintEcho("Disabled!");
-                    break;
-                case "log":
-                case "l":
-                    PrintEcho($"Logging is now {((Config.EnableLogging = !Config.EnableLogging) ? "enabled" : "disabled")}.");
-                    Config.Save();
                     break;
                 case "dry":
                 case "d":
                     PrintEcho($"Dry run is now {((Config.EnableDryRun = !Config.EnableDryRun) ? "enabled" : "disabled")}.");
                     Config.Save();
                     break;
+                case "":
+                    ConfigUI.isVisible = !ConfigUI.isVisible;
+                    break;
                 default:
                     PrintEcho("Invalid usage: Command must be \"/noclippy <option>\"." +
                         "\non / off / toggle - Enables or disables the plugin." +
-                        "\nlog - Toggles logging." +
                         "\ndry - Toggles dry run (will not override the animation lock).");
                     break;
             }
@@ -211,37 +218,90 @@ namespace NoClippy
         public static void PrintEcho(string message) => Interface.Framework.Gui.Chat.Print($"[NoClippy] {message}");
         public static void PrintError(string message) => Interface.Framework.Gui.Chat.PrintError($"[NoClippy] {message}");
 
-        private void Update(Dalamud.Game.Internal.Framework framework)
+        public static void PrintLog(string message)
         {
-            if (!Config.EnableLogging) return;
-            DetectClipping();
-            DetectWastedGCD();
+            if (Config.LogToChat)
+                PrintEcho(message);
+            else
+                PluginLog.LogInformation(message);
+        }
+
+        public void TogglePlugin(bool enable)
+        {
+            if (enable)
+                ReceiveActionEffectHook?.Enable();
+            else
+                ReceiveActionEffectHook?.Disable();
+        }
+
+        private void BeginEncounter()
+        {
+            begunEncounter = DateTime.Now;
+            encounterTotalClip = 0;
+            encounterTotalWaste = 0;
+            currentWastedGCD = 0;
+        }
+
+        private void EndEncounter()
+        {
+            var span = DateTime.Now - begunEncounter;
+            var formattedTime = $"{Math.Floor(span.TotalMinutes):00}:{span.Seconds:00}";
+            PrintLog($"[{formattedTime}] Encounter stats: {encounterTotalClip:0.00} seconds of clipping, {encounterTotalWaste:0.00} seconds of wasted GCD.");
+            begunEncounter = DateTime.MinValue;
         }
 
         private void DetectClipping()
         {
-            if (!Interface.ClientState.Condition[ConditionFlag.InCombat] || lastDetectedClip == ActionCount || IsGCDRecastActive || AnimationLock <= 0) return;
+            if (lastDetectedClip == ActionCount || IsGCDRecastActive || AnimationLock <= 0) return;
 
             if (AnimationLock != 0.1f) // TODO need better way of detecting cast tax, IsCasting is not reliable here, additionally, this will detect LB
-                PluginLog.LogInformation($"GCD Clip: {F2MS(AnimationLock)} ms");
+            {
+                encounterTotalClip += AnimationLock;
+                if (Config.EnableEncounterStatsLogging)
+                    PrintLog($"GCD Clip: {F2MS(AnimationLock)} ms");
+            }
 
             lastDetectedClip = ActionCount;
         }
 
         private void DetectWastedGCD()
         {
-            if (!Interface.ClientState.Condition[ConditionFlag.InCombat]) { currentWastedGCD = 0; return; }
-
             if (!IsGCDRecastActive && !IsQueued)
             {
                 if (AnimationLock > 0) return;
-                currentWastedGCD += ImGuiNET.ImGui.GetIO().DeltaTime;
+                currentWastedGCD += ImGui.GetIO().DeltaTime;
             }
             else if (currentWastedGCD > 0)
             {
-                PluginLog.LogInformation($"Wasted GCD: {F2MS(currentWastedGCD)} ms");
+                encounterTotalWaste += currentWastedGCD;
+                if (Config.EnableEncounterStatsLogging)
+                    PrintLog($"Wasted GCD: {F2MS(currentWastedGCD)} ms");
                 currentWastedGCD = 0;
             }
+        }
+
+        private void UpdateEncounter()
+        {
+            if (!Config.EnableEncounterStats) return;
+
+            if (Interface.ClientState.Condition[ConditionFlag.InCombat])
+            {
+                if (begunEncounter == DateTime.MinValue)
+                    BeginEncounter();
+
+                DetectClipping();
+                DetectWastedGCD();
+            }
+            else if (begunEncounter != DateTime.MinValue)
+            {
+                EndEncounter();
+            }
+        }
+
+        private void Update(Dalamud.Game.Internal.Framework framework)
+        {
+            if (!Config.Enable) return;
+            UpdateEncounter();
         }
 
         #region IDisposable Support
@@ -251,6 +311,9 @@ namespace NoClippy
             commandManager.Dispose();
 
             Interface.Framework.OnUpdateEvent -= Update;
+            Interface.UiBuilder.OnBuildUi -= PluginUI.Draw;
+
+            ImPlot.DestroyContext(_imPlotContext);
 
             ReceiveActionEffectHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;

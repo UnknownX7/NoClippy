@@ -10,7 +10,10 @@ namespace NoClippy
 
         public bool Enable = true;
         public bool EnableLogging = false;
+        public bool EnableEncounterStats = false;
+        public bool EnableEncounterStatsLogging = false;
         public bool EnableDryRun = false;
+        public bool LogToChat = false;
 
         [JsonIgnore] private DalamudPluginInterface pluginInterface;
 
