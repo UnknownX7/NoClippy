@@ -6,7 +6,7 @@ namespace NoClippy
 {
     public static class ConfigUI
     {
-        public static bool isVisible = true;
+        public static bool isVisible = false;
 
         public static void Draw()
         {
