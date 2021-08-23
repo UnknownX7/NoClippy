@@ -20,8 +20,6 @@ namespace NoClippy
         public static Configuration Config { get; private set; }
         public static NoClippy Plugin { get; private set; }
 
-        private IntPtr _imPlotContext;
-
         // This is the typical time range that passes between the time when the client sets a lock and then receives the new lock from the server on a low ping environment
         // This data is an estimate of what near 0 ping would be, based on 20 ms ping logs (feel free to show me logs if you actually have near 0 ms ping)
         private const float MinSimDelay = 0.04f;
@@ -96,10 +94,6 @@ namespace NoClippy
             Config.Initialize(Interface);
 
             commandManager = new();
-
-            ImPlot.SetImGuiContext(ImGui.GetCurrentContext());
-            _imPlotContext = ImPlot.CreateContext();
-            ImPlot.SetCurrentContext(_imPlotContext);
 
             try
             {
@@ -312,8 +306,6 @@ namespace NoClippy
 
             Interface.Framework.OnUpdateEvent -= Update;
             Interface.UiBuilder.OnBuildUi -= PluginUI.Draw;
-
-            ImPlot.DestroyContext(_imPlotContext);
 
             ReceiveActionEffectHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;
