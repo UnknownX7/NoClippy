@@ -1,11 +1,17 @@
 ﻿{
   "Author": "UnknownX",
   "Name": "NoClippy",
+  "Punchline": "Reduces clipping caused by lag, and shows you when you clip",
   "Description": "Reduces the effects of lag on weaving, significantly lowering the chances of clipping. Does the same thing as XivAlexander, do NOT attempt to use both.",
+  "IconUrl": "",
+  "ImageUrls": [
+    ""
+  ],
+  "RepoUrl": "https://github.com/UnknownX7/NoClippy",
   "InternalName": "NoClippy",
   "AssemblyVersion": "",
-  "RepoUrl": "https://github.com/UnknownX7/NoClippy",
   "ApplicableVersion": "any",
-  "DalamudApiLevel": 3,
-  "LoadPriority": 0
+  "DalamudApiLevel": 4,
+  "LoadPriority": 0,
+  "Changelog": "Updated for API4"
 }

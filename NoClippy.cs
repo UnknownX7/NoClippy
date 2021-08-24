@@ -1,24 +1,19 @@
 using System;
-using System.Reflection;
 using Dalamud;
-using Dalamud.Game.ClientState;
+using Dalamud.Game;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Hooking;
+using Dalamud.Logging;
 using Dalamud.Plugin;
 using ImGuiNET;
-using ImPlotNET;
-
-[assembly: AssemblyTitle("NoClippy")]
-[assembly: AssemblyVersion("0.2.0.1")]
 
 namespace NoClippy
 {
     public class NoClippy : IDalamudPlugin
     {
         public string Name => "NoClippy";
-        public static DalamudPluginInterface Interface { get; private set; }
-        private PluginCommandManager commandManager;
-        public static Configuration Config { get; private set; }
         public static NoClippy Plugin { get; private set; }
+        public static Configuration Config { get; private set; }
 
         // This is the typical time range that passes between the time when the client sets a lock and then receives the new lock from the server on a low ping environment
         // This data is an estimate of what near 0 ping would be, based on 20 ms ping logs (feel free to show me logs if you actually have near 0 ms ping)
@@ -85,19 +80,17 @@ namespace NoClippy
         private float encounterTotalClip = 0;
         private float encounterTotalWaste = 0;
 
-        public void Initialize(DalamudPluginInterface p)
+        public NoClippy(DalamudPluginInterface pluginInterface)
         {
             Plugin = this;
-            Interface = p;
+            DalamudApi.Initialize(this, pluginInterface);
 
-            Config = (Configuration)Interface.GetPluginConfig() ?? new();
-            Config.Initialize(Interface);
-
-            commandManager = new();
+            Config = (Configuration)DalamudApi.PluginInterface.GetPluginConfig() ?? new();
+            Config.Initialize();
 
             try
             {
-                var actionManager = Interface.TargetModuleScanner.GetStaticAddressFromSig("41 0F B7 57 04"); // g_ActionManager
+                var actionManager = DalamudApi.SigScanner.GetStaticAddressFromSig("41 0F B7 57 04"); // g_ActionManager
                 animationLockPtr = actionManager + 0x8;
                 isCastingPtr = actionManager + 0x28;
                 comboTimerPtr = actionManager + 0x60;
@@ -105,13 +98,13 @@ namespace NoClippy
                 actionCountPtr = actionManager + 0x110;
                 isGCDRecastActivePtr = actionManager + 0x610;
                 // 0x614 is previous gcd skill, 0x618 is current gcd recast time (counts up), 0x61C is gcd recast (counted up to)
-                ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(Interface.TargetModuleScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
+                ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
 
-                shortClientAnimationLockPtr = Interface.TargetModuleScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F");
+                shortClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F");
                 defaultClientAnimationLockPtr = shortClientAnimationLockPtr + 0xA;
 
-                Interface.Framework.OnUpdateEvent += Update;
-                Interface.UiBuilder.OnBuildUi += PluginUI.Draw;
+                DalamudApi.Framework.Update += Update;
+                DalamudApi.PluginInterface.UiBuilder.Draw += PluginUI.Draw;
 
                 DefaultClientAnimationLock = 0.6f; // Yes, I am going to make the clientside default the same as the server default
 
@@ -209,8 +202,8 @@ namespace NoClippy
             }
         }
 
-        public static void PrintEcho(string message) => Interface.Framework.Gui.Chat.Print($"[NoClippy] {message}");
-        public static void PrintError(string message) => Interface.Framework.Gui.Chat.PrintError($"[NoClippy] {message}");
+        public static void PrintEcho(string message) => DalamudApi.ChatGui.Print($"[NoClippy] {message}");
+        public static void PrintError(string message) => DalamudApi.ChatGui.PrintError($"[NoClippy] {message}");
 
         public static void PrintLog(string message)
         {
@@ -278,7 +271,7 @@ namespace NoClippy
         {
             if (!Config.EnableEncounterStats) return;
 
-            if (Interface.ClientState.Condition[ConditionFlag.InCombat])
+            if (DalamudApi.Condition[ConditionFlag.InCombat])
             {
                 if (begunEncounter == DateTime.MinValue)
                     BeginEncounter();
@@ -292,7 +285,7 @@ namespace NoClippy
             }
         }
 
-        private void Update(Dalamud.Game.Internal.Framework framework)
+        private void Update(Framework framework)
         {
             if (!Config.Enable) return;
             UpdateEncounter();
@@ -302,15 +295,14 @@ namespace NoClippy
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing) return;
-            commandManager.Dispose();
 
-            Interface.Framework.OnUpdateEvent -= Update;
-            Interface.UiBuilder.OnBuildUi -= PluginUI.Draw;
+            Config.Save();
+
+            DalamudApi.Framework.Update -= Update;
+            DalamudApi.PluginInterface.UiBuilder.Draw -= PluginUI.Draw;
 
             ReceiveActionEffectHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;
-            Interface.SavePluginConfig(Config);
-            Interface.Dispose();
         }
 
         public void Dispose()

@@ -1,6 +1,4 @@
 ﻿using Dalamud.Configuration;
-using Dalamud.Plugin;
-using Newtonsoft.Json;
 
 namespace NoClippy
 {
@@ -15,16 +13,8 @@ namespace NoClippy
         public bool EnableDryRun = false;
         public bool LogToChat = false;
 
-        [JsonIgnore] private DalamudPluginInterface pluginInterface;
+        public void Initialize() { }
 
-        public void Initialize(DalamudPluginInterface p)
-        {
-            pluginInterface = p;
-        }
-
-        public void Save()
-        {
-            pluginInterface.SavePluginConfig(this);
-        }
+        public void Save() => DalamudApi.PluginInterface.SavePluginConfig(this);
     }
 }
