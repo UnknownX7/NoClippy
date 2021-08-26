@@ -106,7 +106,8 @@ namespace NoClippy
                 DalamudApi.Framework.Update += Update;
                 DalamudApi.PluginInterface.UiBuilder.Draw += PluginUI.Draw;
 
-                DefaultClientAnimationLock = 0.6f; // Yes, I am going to make the clientside default the same as the server default
+                 // This is normally 0.5f but it causes the client to be sanity checked at high ping, so I'm increasing it to see clips better and see higher pings more accurately
+                DefaultClientAnimationLock = 0.6f;
 
                 if (!Config.Enable) return;
 
