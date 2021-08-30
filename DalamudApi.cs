@@ -19,7 +19,6 @@ using Dalamud.Game.Gui.PartyFinder;
 using Dalamud.Game.Gui.Toast;
 using Dalamud.Game.Libc;
 using Dalamud.Game.Network;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
@@ -105,10 +104,6 @@ namespace NoClippy
         [PluginService]
         //[RequiredVersion("1.0")]
         public static PartyList PartyList { get; private set; }
-
-        [PluginService]
-        //[RequiredVersion("1.0")]
-        public static SeStringManager SeStringManager { get; private set; }
 
         [PluginService]
         //[RequiredVersion("1.0")]

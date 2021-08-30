@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Dalamud.Interface;
 using ImGuiNET;
+using static NoClippy.NoClippy;
 
 namespace NoClippy
 {
@@ -17,10 +18,10 @@ namespace NoClippy
             ImGui.Begin("NoClippy Configuration", ref isVisible, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse);
             ImGui.Columns(2, "NoClippyConfigOptions", false);
 
-            if (ImGui.Checkbox("Enable Plugin", ref NoClippy.Config.Enable))
+            if (ImGui.Checkbox("Enable Plugin", ref Config.Enable))
             {
-                NoClippy.Plugin.TogglePlugin(NoClippy.Config.Enable);
-                NoClippy.Config.Save();
+                TogglePlugin(Config.Enable);
+                Config.Save();
             }
             ImGui.Spacing();
             ImGui.Spacing();
@@ -28,35 +29,35 @@ namespace NoClippy
             ImGui.NextColumn();
             ImGui.NextColumn();
 
-            if (ImGui.Checkbox("Enable Encounter Stats", ref NoClippy.Config.EnableEncounterStats))
-                NoClippy.Config.Save();
+            if (ImGui.Checkbox("Enable Encounter Stats", ref Config.EnableEncounterStats))
+                Config.Save();
             PluginUI.SetItemTooltip("Tracks clips and wasted GCD time while in combat, and logs the total afterwards.");
 
             ImGui.NextColumn();
 
-            if (NoClippy.Config.EnableEncounterStats)
+            if (Config.EnableEncounterStats)
             {
-                if (ImGui.Checkbox("Enable Stats Logging", ref NoClippy.Config.EnableEncounterStatsLogging))
-                    NoClippy.Config.Save();
+                if (ImGui.Checkbox("Enable Stats Logging", ref Config.EnableEncounterStatsLogging))
+                    Config.Save();
                 PluginUI.SetItemTooltip("Logs individual encounter clips and wasted GCD time.");
             }
 
             ImGui.NextColumn();
 
-            if (ImGui.Checkbox("Dry Run", ref NoClippy.Config.EnableDryRun))
-                NoClippy.Config.Save();
+            if (ImGui.Checkbox("Dry Run", ref Config.EnableDryRun))
+                Config.Save();
             PluginUI.SetItemTooltip("The plugin will still log and perform calculations, but no in-game values will be overwritten.");
 
             ImGui.NextColumn();
 
-            if (ImGui.Checkbox("Enable Logging", ref NoClippy.Config.EnableLogging))
-                NoClippy.Config.Save();
+            if (ImGui.Checkbox("Enable Logging", ref Config.EnableLogging))
+                Config.Save();
             //PluginUI.SetItemTooltip("Logs information.");
 
             ImGui.NextColumn();
 
-            if (ImGui.Checkbox("Output to Chat Log", ref NoClippy.Config.LogToChat))
-                NoClippy.Config.Save();
+            if (ImGui.Checkbox("Output to Chat Log", ref Config.LogToChat))
+                Config.Save();
             PluginUI.SetItemTooltip("Sends logging to the chat log instead.");
 
             ImGui.Columns(1);
