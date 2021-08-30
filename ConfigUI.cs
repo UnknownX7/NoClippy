@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Dalamud.Interface;
 using ImGuiNET;
 using static NoClippy.NoClippy;
@@ -8,6 +8,7 @@ namespace NoClippy
     public static class ConfigUI
     {
         public static bool isVisible = false;
+        public static void ToggleVisible() => isVisible ^= true;
 
         public static void Draw()
         {

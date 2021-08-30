@@ -25,6 +25,7 @@ namespace NoClippy
 
                 DalamudApi.Framework.Update += Update;
                 DalamudApi.PluginInterface.UiBuilder.Draw += PluginUI.Draw;
+                DalamudApi.PluginInterface.UiBuilder.OpenConfigUi += ConfigUI.ToggleVisible;
 
                 if (!Config.Enable) return;
 
@@ -59,7 +60,7 @@ namespace NoClippy
                     Config.Save();
                     break;
                 case "":
-                    ConfigUI.isVisible = !ConfigUI.isVisible;
+                    ConfigUI.ToggleVisible();
                     break;
                 default:
                     PrintEcho("Invalid usage: Command must be \"/noclippy <option>\"." +
@@ -105,6 +106,7 @@ namespace NoClippy
 
             DalamudApi.Framework.Update -= Update;
             DalamudApi.PluginInterface.UiBuilder.Draw -= PluginUI.Draw;
+            DalamudApi.PluginInterface.UiBuilder.OpenConfigUi -= ConfigUI.ToggleVisible;
 
             Game.Dispose();
 
