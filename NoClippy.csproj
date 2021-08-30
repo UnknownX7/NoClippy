@@ -61,6 +61,20 @@
       <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Reloaded.Hooks">
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks')">$(AppData)\XIVLauncher\addon\Hooks\dev\Reloaded.Hooks.dll</HintPath>
+      <HintPath Condition="Exists('$(DalamudHooks)')">$(DalamudHooks)\Reloaded.Hooks.dll</HintPath>
+      <HintPath Condition="Exists('..\Dalamud\Dalamud\bin\Debug')">..\Dalamud\Dalamud\bin\Debug\Reloaded.Hooks.dll</HintPath>
+      <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\Reloaded.Hooks.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Reloaded.Hooks.Definitions">
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks')">$(AppData)\XIVLauncher\addon\Hooks\dev\Reloaded.Hooks.Definitions.dll</HintPath>
+      <HintPath Condition="Exists('$(DalamudHooks)')">$(DalamudHooks)\Reloaded.Hooks.Definitions.dll</HintPath>
+      <HintPath Condition="Exists('..\Dalamud\Dalamud\bin\Debug')">..\Dalamud\Dalamud\bin\Debug\Reloaded.Hooks.Definitions.dll</HintPath>
+      <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\Reloaded.Hooks.Definitions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

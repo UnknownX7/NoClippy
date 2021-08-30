@@ -12,6 +12,7 @@ namespace NoClippy
         public bool EnableEncounterStatsLogging = false;
         public bool EnableDryRun = false;
         public bool LogToChat = false;
+        public float QueueThreshold = 0.5f;
 
         public void Initialize() { }
 

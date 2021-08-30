@@ -1,6 +1,7 @@
 using System;
 using Dalamud;
 using Dalamud.Hooking;
+using Reloaded.Hooks.Definitions.Enums;
 
 namespace NoClippy
 {
@@ -58,6 +59,24 @@ namespace NoClippy
             LagCompensation.CompensateAnimationLock(oldLock, newLock);
         }
 
+        private static Reloaded.Hooks.AsmHook queueThresholdHook;
+        public static void SetupQueueThreshold()
+        {
+            queueThresholdHook?.Disable();
+
+            // I would do this as a string array but mov just doesn't want to work with 32+ byte registers
+            var queueTimeBytes = BitConverter.GetBytes(NoClippy.Config.QueueThreshold);
+            var asm = new byte[]
+            {
+                0xB8, queueTimeBytes[0], queueTimeBytes[1], queueTimeBytes[2], queueTimeBytes[3], // mov eax, queueTime
+                0x66, 0x0F, 0x6E, 0xD0, // movd xmm2, eax
+                0x0F, 0x2F, 0xCA // comiss xmm1, xmm2
+            };
+
+            queueThresholdHook = new Reloaded.Hooks.AsmHook(asm, DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B").ToInt64(), AsmHookBehaviour.DoNotExecuteOriginal);
+            queueThresholdHook.Activate().Enable();
+        }
+
         public static void Initialize()
         {
             var actionManager = DalamudApi.SigScanner.GetStaticAddressFromSig("41 0F B7 57 04"); // g_ActionManager
@@ -76,11 +95,15 @@ namespace NoClippy
 
             // This is normally 0.5f but it causes the client to be sanity checked at high ping, so I'm increasing it to see clips better and see higher pings more accurately
             DefaultClientAnimationLock = 0.6f;
+
+            if (NoClippy.Config.QueueThreshold != 0.5f)
+                SetupQueueThreshold();
         }
 
         public static void Dispose()
         {
             ReceiveActionEffectHook?.Dispose();
+            queueThresholdHook?.Disable();
             DefaultClientAnimationLock = 0.5f;
         }
     }

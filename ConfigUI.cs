@@ -14,7 +14,7 @@ namespace NoClippy
             if (!isVisible) return;
 
             //ImGui.SetNextWindowSizeConstraints(new Vector2(400, 200) * ImGuiHelpers.GlobalScale, new Vector2(10000));
-            ImGui.SetNextWindowSize(new Vector2(400, 160) * ImGuiHelpers.GlobalScale);
+            ImGui.SetNextWindowSize(new Vector2(400, 0) * ImGuiHelpers.GlobalScale);
             ImGui.Begin("NoClippy Configuration", ref isVisible, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse);
             ImGui.Columns(2, "NoClippyConfigOptions", false);
 
@@ -61,6 +61,18 @@ namespace NoClippy
             PluginUI.SetItemTooltip("Sends logging to the chat log instead.");
 
             ImGui.Columns(1);
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            ImGui.SliderFloat("Queue Threshold", ref Config.QueueThreshold, 0, 5, "%.1f");
+            if (ImGui.IsItemDeactivated())
+            {
+                Game.SetupQueueThreshold();
+                Config.Save();
+            }
+            PluginUI.SetItemTooltip("Max time left on the GCD before you can queue another GCD. Default is 0.5.");
+
             ImGui.End();
         }
     }
