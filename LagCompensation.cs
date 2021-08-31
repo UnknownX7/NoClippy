@@ -5,14 +5,21 @@ namespace NoClippy
 {
     public static class LagCompensation
     {
-        // This is the typical time range that passes between the time when the client sets a lock and then receives the new lock from the server on a low ping environment
-        // This data is an estimate of what near 0 ping would be, based on 20 ms ping logs (feel free to show me logs if you actually have near 0 ms ping)
+        // ALL INFO BELOW IS BASED ON MY FINDINGS AND I RESERVE THE RIGHT TO HAVE MISINTERPRETED SOMETHING, THANKS
+        // The typical time range that passes for the client is never equal to ping, it always seems to be at least ping + server delay
+        // The server delay is usually around 40-60 ms in the overworld, but falls to 30-40 ms inside of instances
+        // Additionally, your FPS will add more time because one frame MUST pass for you to receive the new animation lock
+        // Therefore, most players will never receive a response within 40 ms at any ping
+        // Another interesting fact is that the delay from the server will spike if you send multiple packets at the same time
+        // This seems to imply that the server will not process more than one packet from you per tick
+        // You can see this if you sheathe your weapon before using an ability, you will notice delays that are around 50 ms higher than usual
+        // This explains the phenomenon where moving seems to make it harder to weave
+
+        // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 gcd triple
+
+        // Simulates around 10 ms ping
         private const float MinSimDelay = 0.04f;
         private const float MaxSimDelay = 0.06f;
-
-        // This will allow a portion of actual spikes (either from your internet or the server) to bleed into the simulated delay
-        // This makes your delay look natural to other people since networks aren't perfect (notably, sending multiple packets at the same time can add 50-100 ms)
-        private const bool AllowSpikes = true;
 
 
         private static byte ignoreNext = 0;
@@ -48,7 +55,7 @@ namespace NoClippy
             }
 
             var responseTime = Game.DefaultClientAnimationLock - oldLock;
-            var reduction = AllowSpikes ? Math.Min(AverageDelay(responseTime), responseTime) : responseTime;
+            var reduction = Math.Min(AverageDelay(responseTime), responseTime);
             var delayOverride = Math.Min(Math.Max(newLock - reduction + SimulateDelay(), 0), newLock);
 
             if (!Config.EnableDryRun)
