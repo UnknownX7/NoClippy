@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Runtime.InteropServices;
 using Dalamud;
 using Dalamud.Hooking;
 using Reloaded.Hooks.Definitions.Enums;
@@ -48,22 +50,36 @@ namespace NoClippy
             LagCompensation.CompensateAnimationLock(oldLock, newLock);
         }
 
-        private static Reloaded.Hooks.AsmHook queueThresholdHook;
+        private static IntPtr _queueThresholdPtr = IntPtr.Zero;
+        public static unsafe float QueueThreshold
+        {
+            get => _queueThresholdPtr == IntPtr.Zero ? 0.5f : *(float*)_queueThresholdPtr;
+            set
+            {
+                if (_queueThresholdPtr == IntPtr.Zero)
+                    SetupQueueThreshold();
+
+                *(float*)_queueThresholdPtr = value < 2.5f ? value : 10;
+            }
+        }
+
+        private static Hook<Action> queueThresholdHook;
+        //private static AsmHook queueThresholdHook;
         public static void SetupQueueThreshold()
         {
-            queueThresholdHook?.Disable();
+            _queueThresholdPtr = Marshal.AllocHGlobal(sizeof(float));
 
-            // I would do this as a string array but mov just doesn't want to work with 32+ byte registers
-            var queueTimeBytes = BitConverter.GetBytes(NoClippy.Config.QueueThreshold);
-            var asm = new byte[]
+            var ptrStr = BitConverter.GetBytes(_queueThresholdPtr.ToInt64()).Reverse()
+                .Aggregate(string.Empty, (current, b) => current + b.ToString("X2")) + "h";
+            var asm = new[]
             {
-                0xB8, queueTimeBytes[0], queueTimeBytes[1], queueTimeBytes[2], queueTimeBytes[3], // mov eax, queueTime
-                0x66, 0x0F, 0x6E, 0xD0, // movd xmm2, eax
-                0x0F, 0x2F, 0xCA // comiss xmm1, xmm2
+                "use64",
+                $"mov rax, {ptrStr}",
+                "comiss xmm1, [rax]"
             };
 
-            queueThresholdHook = new Reloaded.Hooks.AsmHook(asm, DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B").ToInt64(), AsmHookBehaviour.DoNotExecuteOriginal);
-            queueThresholdHook.Activate().Enable();
+            //queueThresholdHook = new(DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B"), asm, AsmHookBehaviour.DoNotExecuteOriginal);
+            //queueThresholdHook.Enable();
         }
 
         public static void Initialize()
@@ -85,14 +101,15 @@ namespace NoClippy
             DefaultClientAnimationLock = 0.6f;
 
             if (NoClippy.Config.QueueThreshold != 0.5f)
-                SetupQueueThreshold();
+                QueueThreshold = NoClippy.Config.QueueThreshold;
         }
 
         public static void Dispose()
         {
             ReceiveActionEffectHook?.Dispose();
-            queueThresholdHook?.Disable();
+            queueThresholdHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;
+            Marshal.FreeHGlobal(_queueThresholdPtr);
         }
     }
 }

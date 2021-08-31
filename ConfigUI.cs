@@ -1,3 +1,4 @@
+﻿using System.Collections;
 using System.Numerics;
 using Dalamud.Interface;
 using ImGuiNET;
@@ -66,13 +67,13 @@ namespace NoClippy
             ImGui.Spacing();
             ImGui.Spacing();
 
-            ImGui.SliderFloat("Queue Threshold", ref Config.QueueThreshold, 0, 5, "%.1f");
-            if (ImGui.IsItemDeactivated())
+            if (ImGui.SliderFloat("Queue Threshold", ref Config.QueueThreshold, 0, 2.5f, "%.1f"))
             {
-                Game.SetupQueueThreshold();
+                Game.QueueThreshold = Config.QueueThreshold;
                 Config.Save();
             }
-            PluginUI.SetItemTooltip("Max time left on the GCD before you can queue another GCD. Default is 0.5.");
+            PluginUI.SetItemTooltip("Max time left on the GCD before you can queue another GCD." +
+                "\nDefault is 0.5, set it to 2.5 to always allow queuing.");
 
             ImGui.End();
         }
