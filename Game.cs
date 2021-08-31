@@ -36,17 +36,6 @@ namespace NoClippy
             }
         }
 
-        private static IntPtr shortClientAnimationLockPtr;
-        public static unsafe float ShortClientAnimationLock
-        {
-            get => *(float*)shortClientAnimationLockPtr;
-            set
-            {
-                if (shortClientAnimationLockPtr != IntPtr.Zero)
-                    SafeMemory.WriteBytes(shortClientAnimationLockPtr, BitConverter.GetBytes(value));
-            }
-        }
-
         public delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
         public static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
         public static void ReceiveActionEffectDetour(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail)
@@ -90,8 +79,7 @@ namespace NoClippy
 
             ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
 
-            shortClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F");
-            defaultClientAnimationLockPtr = shortClientAnimationLockPtr + 0xA;
+            defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F") + 0xA;
 
             // This is normally 0.5f but it causes the client to be sanity checked at high ping, so I'm increasing it to see clips better and see higher pings more accurately
             DefaultClientAnimationLock = 0.6f;
