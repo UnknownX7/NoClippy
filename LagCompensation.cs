@@ -15,14 +15,13 @@ namespace NoClippy
         // You can see this if you sheathe your weapon before using an ability, you will notice delays that are around 50 ms higher than usual
         // This explains the phenomenon where moving seems to make it harder to weave
 
-        // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 gcd triple
+        // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 GCD triple
 
         // Simulates around 10 ms ping
         private const float MinSimDelay = 0.04f;
         private const float MaxSimDelay = 0.06f;
 
 
-        private static byte ignoreNext = 0;
         private static float delay = -1;
         private static float simDelay = (MaxSimDelay - MinSimDelay) / 2f + MinSimDelay;
         private static readonly Random rand = new();
@@ -42,15 +41,8 @@ namespace NoClippy
             // Special case to (mostly) prevent accidentally using XivAlexander at the same time
             if (!Config.EnableDryRun && newLock % 0.01 is >= 0.0005f and <= 0.0095f)
             {
-                ignoreNext = 2;
-                PrintError($"Unexpected lock of {F2MS(newLock)} ms");
-                return;
-            }
-
-            if (ignoreNext > 0)
-            {
-                ignoreNext--;
-                PrintError("Detected possible use of XivAlexander");
+                Config.EnableDryRun = true;
+                PrintError($"Unexpected lock of {F2MS(newLock)} ms, dry run has been enabled");
                 return;
             }
 
