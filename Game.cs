@@ -3,7 +3,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Dalamud;
 using Dalamud.Hooking;
-using Reloaded.Hooks.Definitions.Enums;
 
 namespace NoClippy
 {
@@ -71,8 +70,7 @@ namespace NoClippy
             }
         }
 
-        private static Hook<Action> queueThresholdHook;
-        //private static AsmHook queueThresholdHook;
+        private static AsmHook queueThresholdHook;
         public static void SetupQueueThreshold()
         {
             _queueThresholdPtr = Marshal.AllocHGlobal(sizeof(float));
@@ -86,8 +84,8 @@ namespace NoClippy
                 "comiss xmm1, [rax]"
             };
 
-            //queueThresholdHook = new(DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B"), asm, AsmHookBehaviour.DoNotExecuteOriginal);
-            //queueThresholdHook.Enable();
+            queueThresholdHook = new(DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B"), asm, "QueueThresholdHook", AsmHookBehaviour.DoNotExecuteOriginal);
+            queueThresholdHook.Enable();
         }
 
         public static void Initialize()
