@@ -50,6 +50,14 @@ namespace NoClippy
             LagCompensation.CompensateAnimationLock(oldLock, newLock);
         }
 
+        public static void ToggleReceiveActionEffectHook(bool enable)
+        {
+            if (enable)
+                ReceiveActionEffectHook?.Enable();
+            else
+                ReceiveActionEffectHook?.Disable();
+        }
+
         private static IntPtr _queueThresholdPtr = IntPtr.Zero;
         public static unsafe float QueueThreshold
         {
@@ -99,6 +107,9 @@ namespace NoClippy
 
             // This is normally 0.5f but it causes the client to be sanity checked at high ping, so I'm increasing it to see clips better and see higher pings more accurately
             DefaultClientAnimationLock = 0.6f;
+
+            if (NoClippy.Config.EnableAnimLockComp)
+                ToggleReceiveActionEffectHook(true);
 
             if (NoClippy.Config.QueueThreshold != 0.5f)
                 QueueThreshold = NoClippy.Config.QueueThreshold;

@@ -20,16 +20,33 @@ namespace NoClippy
             ImGui.Begin("NoClippy Configuration", ref isVisible, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse);
             ImGui.Columns(2, "NoClippyConfigOptions", false);
 
-            if (ImGui.Checkbox("Enable Plugin", ref Config.Enable))
+            if (ImGui.Checkbox("Enable Anim. Lock Comp.", ref Config.EnableAnimLockComp))
             {
-                TogglePlugin(Config.Enable);
+                Game.ToggleReceiveActionEffectHook(Config.EnableAnimLockComp);
                 Config.Save();
             }
-            ImGui.Spacing();
-            ImGui.Spacing();
+            PluginUI.SetItemTooltip("Reduces the animation lock to simulate about 10 ms ping," +
+                "\nplease enable dry run if you just want logging with XivAlexander.");
 
             ImGui.NextColumn();
+
+            if (Config.EnableAnimLockComp)
+            {
+                ImGui.NextColumn();
+
+                if (ImGui.Checkbox("Enable Logging", ref Config.EnableLogging))
+                    Config.Save();
+                //PluginUI.SetItemTooltip("Logs information.");
+
+                ImGui.NextColumn();
+
+                if (ImGui.Checkbox("Dry Run", ref Config.EnableDryRun))
+                    Config.Save();
+                PluginUI.SetItemTooltip("The plugin will still log and perform calculations, but no in-game values will be overwritten.");
+            }
+
             ImGui.NextColumn();
+            ImGui.Separator();
 
             if (ImGui.Checkbox("Enable Encounter Stats", ref Config.EnableEncounterStats))
                 Config.Save();
@@ -45,18 +62,7 @@ namespace NoClippy
             }
 
             ImGui.NextColumn();
-
-            if (ImGui.Checkbox("Dry Run", ref Config.EnableDryRun))
-                Config.Save();
-            PluginUI.SetItemTooltip("The plugin will still log and perform calculations, but no in-game values will be overwritten.");
-
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox("Enable Logging", ref Config.EnableLogging))
-                Config.Save();
-            //PluginUI.SetItemTooltip("Logs information.");
-
-            ImGui.NextColumn();
+            ImGui.Separator();
 
             if (ImGui.Checkbox("Output to Chat Log", ref Config.LogToChat))
                 Config.Save();
@@ -64,6 +70,7 @@ namespace NoClippy
 
             ImGui.Columns(1);
 
+            ImGui.Separator();
             ImGui.Spacing();
             ImGui.Spacing();
 

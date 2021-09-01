@@ -26,10 +26,6 @@ namespace NoClippy
                 DalamudApi.Framework.Update += Update;
                 DalamudApi.PluginInterface.UiBuilder.Draw += PluginUI.Draw;
                 DalamudApi.PluginInterface.UiBuilder.OpenConfigUi += ConfigUI.ToggleVisible;
-
-                if (!Config.Enable) return;
-
-                TogglePlugin(true);
             }
             catch { PrintError("Failed to load!"); }
         }
@@ -41,18 +37,18 @@ namespace NoClippy
             switch (argument)
             {
                 case "on":
-                case "toggle" when !Config.Enable:
-                case "t" when !Config.Enable:
-                    TogglePlugin(Config.Enable = true);
+                case "toggle" when !Config.EnableAnimLockComp:
+                case "t" when !Config.EnableAnimLockComp:
+                    Game.ToggleReceiveActionEffectHook(Config.EnableAnimLockComp = true);
                     Config.Save();
-                    PrintEcho("Enabled!");
+                    PrintEcho("Enabled animation lock compensation!");
                     break;
                 case "off":
-                case "toggle" when Config.Enable:
-                case "t" when Config.Enable:
-                    TogglePlugin(Config.Enable = false);
+                case "toggle" when Config.EnableAnimLockComp:
+                case "t" when Config.EnableAnimLockComp:
+                    Game.ToggleReceiveActionEffectHook(Config.EnableAnimLockComp = false);
                     Config.Save();
-                    PrintEcho("Disabled!");
+                    PrintEcho("Disabled animation lock compensation!");
                     break;
                 case "dry":
                 case "d":
@@ -64,7 +60,7 @@ namespace NoClippy
                     break;
                 default:
                     PrintEcho("Invalid usage: Command must be \"/noclippy <option>\"." +
-                        "\non / off / toggle - Enables or disables the plugin." +
+                        "\non / off / toggle - Enables or disables animation lock compensation." +
                         "\ndry - Toggles dry run (will not override the animation lock).");
                     break;
             }
@@ -83,17 +79,9 @@ namespace NoClippy
 
         public static int F2MS(float f) => (int)(f * 1000);
 
-        public static void TogglePlugin(bool enable)
-        {
-            if (enable)
-                Game.ReceiveActionEffectHook?.Enable();
-            else
-                Game.ReceiveActionEffectHook?.Disable();
-        }
-
         private static void Update(Framework framework)
         {
-            if (!Config.Enable) return;
+            if (!Config.EnableEncounterStats) return;
             Stats.Update();
         }
 
