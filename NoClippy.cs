@@ -39,14 +39,14 @@ namespace NoClippy
                 case "on":
                 case "toggle" when !Config.EnableAnimLockComp:
                 case "t" when !Config.EnableAnimLockComp:
-                    Game.ToggleReceiveActionEffectHook(Config.EnableAnimLockComp = true);
+                    Config.EnableAnimLockComp = true;
                     Config.Save();
                     PrintEcho("Enabled animation lock compensation!");
                     break;
                 case "off":
                 case "toggle" when Config.EnableAnimLockComp:
                 case "t" when Config.EnableAnimLockComp:
-                    Game.ToggleReceiveActionEffectHook(Config.EnableAnimLockComp = false);
+                    Config.EnableAnimLockComp = false;
                     Config.Save();
                     PrintEcho("Disabled animation lock compensation!");
                     break;
@@ -77,11 +77,11 @@ namespace NoClippy
                 PluginLog.LogInformation(message);
         }
 
-        public static int F2MS(float f) => (int)(f * 1000);
+        public static int F2MS(float f) => (int)Math.Round(f * 1000);
 
         private static void Update(Framework framework)
         {
-            if (!Config.EnableEncounterStats) return;
+            Game.Update();
             Stats.Update();
         }
 

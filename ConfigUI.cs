@@ -21,10 +21,7 @@ namespace NoClippy
             ImGui.Columns(2, "NoClippyConfigOptions", false);
 
             if (ImGui.Checkbox("Enable Anim. Lock Comp.", ref Config.EnableAnimLockComp))
-            {
-                Game.ToggleReceiveActionEffectHook(Config.EnableAnimLockComp);
                 Config.Save();
-            }
             PluginUI.SetItemTooltip("Reduces the animation lock to simulate about 10 ms ping," +
                 "\nplease enable dry run if you just want logging with XivAlexander.");
 

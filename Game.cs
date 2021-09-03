@@ -37,6 +37,26 @@ namespace NoClippy
             }
         }
 
+        public delegate byte UseActionDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp);
+        public static Hook<UseActionDelegate> UseActionHook;
+        public static byte UseActionDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp)
+        {
+            var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp);
+            if (ret > 0 && (useType == 1 || !IsQueued))
+                packetsSent = framePackets;
+            return ret;
+        }
+
+        public delegate byte UseActionLocationDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
+        public static Hook<UseActionLocationDelegate> UseActionLocationHook;
+        public static byte UseActionLocationDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
+        {
+            var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
+            if (ret > 0)
+                packetsSent = framePackets;
+            return ret;
+        }
+
         public delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
         public static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
         public static void ReceiveActionEffectDetour(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail)
@@ -44,17 +64,10 @@ namespace NoClippy
             var oldLock = AnimationLock;
             ReceiveActionEffectHook.Original(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail);
             var newLock = AnimationLock;
-            if (oldLock == newLock) return;
+
+            if (!NoClippy.Config.EnableAnimLockComp || oldLock == newLock) return;
 
             LagCompensation.CompensateAnimationLock(oldLock, newLock);
-        }
-
-        public static void ToggleReceiveActionEffectHook(bool enable)
-        {
-            if (enable)
-                ReceiveActionEffectHook?.Enable();
-            else
-                ReceiveActionEffectHook?.Disable();
         }
 
         private static IntPtr _queueThresholdPtr = IntPtr.Zero;
@@ -88,6 +101,15 @@ namespace NoClippy
             queueThresholdHook.Enable();
         }
 
+        public static int packetsSent = 0;
+        public static int framePackets = 0;
+        private static void OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, Dalamud.Game.Network.NetworkMessageDirection direction)
+        {
+            if (direction != Dalamud.Game.Network.NetworkMessageDirection.ZoneUp) return;
+            framePackets++;
+            packetsSent++;
+        }
+
         public static void Initialize()
         {
             var actionManager = DalamudApi.SigScanner.GetStaticAddressFromSig("41 0F B7 57 04"); // g_ActionManager
@@ -99,6 +121,8 @@ namespace NoClippy
             isGCDRecastActivePtr = actionManager + 0x610;
             // 0x614 is previous gcd skill, 0x618 is current gcd recast time (counts up), 0x61C is gcd recast (counted up to)
 
+            UseActionHook = new Hook<UseActionDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 89 9F BC 76 02 00"), UseActionDetour);
+            UseActionLocationHook = new Hook<UseActionLocationDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 5C 24 50 0F B6 F0"), UseActionLocationDetour);
             ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
 
             defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F") + 0xA;
@@ -106,15 +130,23 @@ namespace NoClippy
             // This is normally 0.5f but it causes the client to be sanity checked at high ping, so I'm increasing it to see clips better and see higher pings more accurately
             DefaultClientAnimationLock = 0.6f;
 
-            if (NoClippy.Config.EnableAnimLockComp)
-                ToggleReceiveActionEffectHook(true);
+            DalamudApi.GameNetwork.OnNetworkMessage += OnNetworkMessage;
 
             if (NoClippy.Config.QueueThreshold != 0.5f)
                 QueueThreshold = NoClippy.Config.QueueThreshold;
+
+            UseActionHook.Enable();
+            UseActionLocationHook.Enable();
+            ReceiveActionEffectHook.Enable();
         }
+
+        public static void Update() => framePackets = 0;
 
         public static void Dispose()
         {
+            DalamudApi.GameNetwork.OnNetworkMessage -= OnNetworkMessage;
+            UseActionHook?.Dispose();
+            UseActionLocationHook?.Dispose();
             ReceiveActionEffectHook?.Dispose();
             queueThresholdHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;

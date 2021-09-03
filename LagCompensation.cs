@@ -26,7 +26,10 @@ namespace NoClippy
         private static float simDelay = (MaxSimDelay - MinSimDelay) / 2f + MinSimDelay;
         private static readonly Random rand = new();
 
-        private static float AverageDelay(float currentDelay) => delay > 0 ? delay = delay * 0.5f + currentDelay * 0.5f : delay = currentDelay * 0.75f;
+        private static float AverageDelay(float currentDelay, float weight)
+            => delay > 0
+            ? delay = delay * (1 - weight) + currentDelay * weight
+            : delay = weight > 0.3f ? currentDelay : currentDelay * 0.75f; // Initial starting delay
         private static float SimulateDelay() => simDelay = Math.Min(Math.Max(simDelay + (float)(rand.NextDouble() - 0.5) * 0.016f, MinSimDelay), MaxSimDelay);
         public static void CompensateAnimationLock(float oldLock, float newLock)
         {
@@ -43,23 +46,29 @@ namespace NoClippy
             {
                 Config.EnableDryRun = true;
                 PrintError($"Unexpected lock of {F2MS(newLock)} ms, dry run has been enabled");
-                return;
             }
 
             var responseTime = Game.DefaultClientAnimationLock - oldLock;
-            var reduction = Math.Min(AverageDelay(responseTime), responseTime);
-            var delayOverride = Math.Min(Math.Max(newLock - reduction + SimulateDelay(), 0), newLock);
+
+            var prevAverage = delay;
+            var newAverage = AverageDelay(responseTime, Game.packetsSent > 1 ? 0.1f : 0.5f);
+            var average = prevAverage > 0 ? prevAverage : newAverage;
+
+            var spikeDelay = Math.Max(responseTime - average, 0);
+            var addedDelay = SimulateDelay() + spikeDelay;
+
+            var delayOverride = Math.Min(Math.Max(newLock - responseTime + addedDelay, 0), newLock);
 
             if (!Config.EnableDryRun)
                 Game.AnimationLock = delayOverride;
 
             if (!Config.EnableLogging && oldLock != 0) return;
 
-            var spikeDelay = responseTime - reduction;
             PrintLog($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}" +
-                $"Response: {F2MS(responseTime)} ({F2MS(delay)}) > {F2MS(simDelay + spikeDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms" +
+                $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms" +
                 $"{(Config.EnableDryRun && newLock <= 0.6f && newLock % 0.01 is >= 0.0005f and <= 0.0095f ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
-                $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock) - 1}) ms");
+                $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock)}) ms" +
+                $" || Packets: {Game.packetsSent}");
         }
     }
 }

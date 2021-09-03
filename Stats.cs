@@ -1,12 +1,6 @@
 using System;
-using Dalamud;
-using Dalamud.Game;
 using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Hooking;
-using Dalamud.Logging;
-using Dalamud.Plugin;
 using ImGuiNET;
-using Reloaded.Hooks.Definitions.Enums;
 
 namespace NoClippy
 {
