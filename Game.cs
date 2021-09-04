@@ -43,7 +43,7 @@ namespace NoClippy
         {
             var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp);
             if (ret > 0 && (useType == 1 || !IsQueued))
-                packetsSent = framePackets;
+                packetsSent = intervalPackets.Sum();
             return ret;
         }
 
@@ -53,7 +53,7 @@ namespace NoClippy
         {
             var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
             if (ret > 0)
-                packetsSent = framePackets;
+                packetsSent = intervalPackets.Sum();
             return ret;
         }
 
@@ -102,12 +102,13 @@ namespace NoClippy
         }
 
         public static int packetsSent = 0;
-        public static int framePackets = 0;
+        private static float intervalPacketsTimer = 0;
+        private static int intervalPacketsIndex = 0;
+        private static readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
         private static void OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, Dalamud.Game.Network.NetworkMessageDirection direction)
         {
-            if (direction != Dalamud.Game.Network.NetworkMessageDirection.ZoneUp) return;
-            framePackets++;
-            packetsSent++;
+            if (!NoClippy.Config.EnableAnimLockComp || direction != Dalamud.Game.Network.NetworkMessageDirection.ZoneUp) return;
+            intervalPackets[intervalPacketsIndex]++;
         }
 
         public static void Initialize()
@@ -140,7 +141,18 @@ namespace NoClippy
             ReceiveActionEffectHook.Enable();
         }
 
-        public static void Update() => framePackets = 0;
+        public static void Update()
+        {
+            if (!NoClippy.Config.EnableAnimLockComp) return;
+
+            intervalPacketsTimer += ImGuiNET.ImGui.GetIO().DeltaTime;
+            while (intervalPacketsTimer >= 0.01f)
+            {
+                intervalPacketsTimer -= 0.01f;
+                intervalPacketsIndex = (intervalPacketsIndex + 1) % intervalPackets.Length;
+                intervalPackets[intervalPacketsIndex] = 0;
+            }
+        }
 
         public static void Dispose()
         {

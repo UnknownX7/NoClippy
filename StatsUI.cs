@@ -21,6 +21,7 @@ namespace NoClippy
             ImGui.SetNextWindowSize(new Vector2(400, 400) * ImGuiHelpers.GlobalScale);
             ImGui.Begin("NoClippy Statistics", ref isVisible, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse);
 
+            // Currently broken in Dalamud
             ImPlot.SetNextPlotLimitsX(0, _gcdClipPlotPoints.Count);
             ImPlot.SetNextPlotLimitsY(0, GetLastIndexOrDefault(_gcdClipPlotPoints, 0) + 0.1f, ImGuiCond.Always);
             if (ImPlot.BeginPlot("hello", string.Empty, string.Empty, new Vector2(-1, 0), 0))

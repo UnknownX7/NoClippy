@@ -17,7 +17,7 @@ namespace NoClippy
 
         // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 GCD triple
 
-        // Simulates around 10 ms ping
+        // Simulates around 10 ms ping (spiking makes this look closer to 15-20 ms)
         private const float MinSimDelay = 0.04f;
         private const float MaxSimDelay = 0.06f;
 
@@ -54,8 +54,8 @@ namespace NoClippy
             var newAverage = AverageDelay(responseTime, Game.packetsSent > 1 ? 0.1f : 0.5f);
             var average = prevAverage > 0 ? prevAverage : newAverage;
 
-            var spikeDelay = Math.Max(responseTime - average, 0);
-            var addedDelay = SimulateDelay() + spikeDelay;
+            var spikeMult = 1 + Math.Max(responseTime - average, 0) / newAverage;
+            var addedDelay = SimulateDelay() * spikeMult;
 
             var delayOverride = Math.Min(Math.Max(newLock - responseTime + addedDelay, 0), newLock);
 
@@ -65,7 +65,7 @@ namespace NoClippy
             if (!Config.EnableLogging && oldLock != 0) return;
 
             PrintLog($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}" +
-                $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} ({F2MS(simDelay)} + {F2MS(spikeDelay)}) ms" +
+                $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} ({F2MS(simDelay)}) (+{(spikeMult - 1):P0}) ms" +
                 $"{(Config.EnableDryRun && newLock <= 0.6f && newLock % 0.01 is >= 0.0005f and <= 0.0095f ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
                 $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock)}) ms" +
                 $" || Packets: {Game.packetsSent}");
