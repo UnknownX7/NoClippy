@@ -50,6 +50,7 @@ jobs:
       with:
         repository: ${{ env.PERSONAL_PLUGIN_REPO }}
         token: ${{ secrets.PAT }}
+        ref: ${{ env.BRANCH }}
 
     - uses: actions/download-artifact@v2
       with:
