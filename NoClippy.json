@@ -13,5 +13,5 @@
   "ApplicableVersion": "any",
   "DalamudApiLevel": 4,
   "LoadPriority": 0,
-  "Changelog": "Updated for API4"
+  "Changelog": "Improved consistency with the game's real animation lock quirks, and added the ability to change how early GCDs can be queued."
 }
