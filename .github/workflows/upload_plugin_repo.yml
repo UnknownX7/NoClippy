@@ -10,6 +10,7 @@ env:
   INTERNAL_NAME: NoClippy
   RELEASE_DIR: ./Publish
   PERSONAL_PLUGIN_REPO: UnknownX7/DalamudPluginRepo
+  BRANCH: api4
 
 jobs:
   build:
@@ -60,5 +61,5 @@ jobs:
         add: --all
         author_name: GitHub Action
         author_email: github-actions[bot]@users.noreply.github.com
-        branch: master
+        branch: ${{ env.BRANCH }}
         message: Update ${{ env.INTERNAL_NAME }}
