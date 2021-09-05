@@ -105,7 +105,7 @@ namespace NoClippy
         private static float intervalPacketsTimer = 0;
         private static int intervalPacketsIndex = 0;
         private static readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
-        private static void OnNetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, Dalamud.Game.Network.NetworkMessageDirection direction)
+        private static void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, Dalamud.Game.Network.NetworkMessageDirection direction)
         {
             if (!NoClippy.Config.EnableAnimLockComp || direction != Dalamud.Game.Network.NetworkMessageDirection.ZoneUp) return;
             intervalPackets[intervalPacketsIndex]++;
@@ -131,7 +131,7 @@ namespace NoClippy
             // This is normally 0.5f but it causes the client to be sanity checked at high ping, so I'm increasing it to see clips better and see higher pings more accurately
             DefaultClientAnimationLock = 0.6f;
 
-            DalamudApi.GameNetwork.OnNetworkMessage += OnNetworkMessage;
+            DalamudApi.GameNetwork.NetworkMessage += NetworkMessage;
 
             if (NoClippy.Config.QueueThreshold != 0.5f)
                 QueueThreshold = NoClippy.Config.QueueThreshold;
@@ -156,7 +156,7 @@ namespace NoClippy
 
         public static void Dispose()
         {
-            DalamudApi.GameNetwork.OnNetworkMessage -= OnNetworkMessage;
+            DalamudApi.GameNetwork.NetworkMessage -= NetworkMessage;
             UseActionHook?.Dispose();
             UseActionLocationHook?.Dispose();
             ReceiveActionEffectHook?.Dispose();
