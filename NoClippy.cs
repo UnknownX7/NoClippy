@@ -26,6 +26,8 @@ namespace NoClippy
                 DalamudApi.Framework.Update += Update;
                 DalamudApi.PluginInterface.UiBuilder.Draw += PluginUI.Draw;
                 DalamudApi.PluginInterface.UiBuilder.OpenConfigUi += ConfigUI.ToggleVisible;
+
+                Modules.Modules.Initialize();
             }
             catch { PrintError("Failed to load!"); }
         }
@@ -96,6 +98,7 @@ namespace NoClippy
             DalamudApi.PluginInterface.UiBuilder.Draw -= PluginUI.Draw;
             DalamudApi.PluginInterface.UiBuilder.OpenConfigUi -= ConfigUI.ToggleVisible;
 
+            Modules.Modules.Dispose();
             Game.Dispose();
 
             DalamudApi.Dispose();

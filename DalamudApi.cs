@@ -117,11 +117,11 @@ namespace NoClippy
         //[RequiredVersion("1.0")]
         public static ToastGui ToastGui { get; private set; }
 
-        private static PluginCommandManager<IDalamudPlugin> _pluginCommandManager;
+        private static PluginCommandManager<IDalamudPlugin> pluginCommandManager;
 
         public DalamudApi() { }
 
-        public DalamudApi(IDalamudPlugin plugin) => _pluginCommandManager ??= new(plugin);
+        public DalamudApi(IDalamudPlugin plugin) => pluginCommandManager ??= new(plugin);
 
         public DalamudApi(IDalamudPlugin plugin, DalamudPluginInterface pluginInterface)
         {
@@ -131,7 +131,7 @@ namespace NoClippy
                 return;
             }
 
-            _pluginCommandManager ??= new(plugin);
+            pluginCommandManager ??= new(plugin);
         }
 
         public static DalamudApi operator +(DalamudApi container, object o)
@@ -148,19 +148,19 @@ namespace NoClippy
 
         public static void Initialize(IDalamudPlugin plugin, DalamudPluginInterface pluginInterface) => _ = new DalamudApi(plugin, pluginInterface);
 
-        public static void Dispose() => _pluginCommandManager?.Dispose();
+        public static void Dispose() => pluginCommandManager?.Dispose();
     }
 
     #region PluginCommandManager
     public class PluginCommandManager<T> : IDisposable where T : IDalamudPlugin
     {
-        private readonly T _plugin;
-        private readonly (string, CommandInfo)[] _pluginCommands;
+        private readonly T plugin;
+        private readonly (string, CommandInfo)[] pluginCommands;
 
-        public PluginCommandManager(T plugin)
+        public PluginCommandManager(T p)
         {
-            _plugin = plugin;
-            _pluginCommands = _plugin.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance)
+            plugin = p;
+            pluginCommands = plugin.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance)
                 .Where(method => method.GetCustomAttribute<CommandAttribute>() != null)
                 .SelectMany(GetCommandInfoTuple)
                 .ToArray();
@@ -170,19 +170,19 @@ namespace NoClippy
 
         private void AddCommandHandlers()
         {
-            foreach (var (command, commandInfo) in _pluginCommands)
+            foreach (var (command, commandInfo) in pluginCommands)
                 DalamudApi.CommandManager.AddHandler(command, commandInfo);
         }
 
         private void RemoveCommandHandlers()
         {
-            foreach (var (command, _) in _pluginCommands)
+            foreach (var (command, _) in pluginCommands)
                 DalamudApi.CommandManager.RemoveHandler(command);
         }
 
         private IEnumerable<(string, CommandInfo)> GetCommandInfoTuple(MethodInfo method)
         {
-            var handlerDelegate = (CommandInfo.HandlerDelegate)Delegate.CreateDelegate(typeof(CommandInfo.HandlerDelegate), _plugin, method);
+            var handlerDelegate = (CommandInfo.HandlerDelegate)Delegate.CreateDelegate(typeof(CommandInfo.HandlerDelegate), plugin, method);
 
             var command = handlerDelegate.Method.GetCustomAttribute<CommandAttribute>();
             var aliases = handlerDelegate.Method.GetCustomAttribute<AliasesAttribute>();

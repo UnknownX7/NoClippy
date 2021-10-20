@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Dalamud;
+using Dalamud.Game.Network;
 using Dalamud.Hooking;
 
 namespace NoClippy
@@ -37,58 +38,58 @@ namespace NoClippy
             }
         }
 
+        public delegate void UseActionEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, ref byte ret);
+        public static event UseActionEventDelegate OnUseAction;
         public delegate byte UseActionDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp);
         public static Hook<UseActionDelegate> UseActionHook;
         public static byte UseActionDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp)
         {
             var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp);
-            if (ret > 0 && (useType == 1 || !IsQueued))
-                packetsSent = intervalPackets.Sum();
+            OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, ref ret);
             return ret;
         }
 
+        public delegate void UseActionLocationEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, ref byte ret);
+        public static event UseActionLocationEventDelegate OnUseActionLocation;
         public delegate byte UseActionLocationDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
         public static Hook<UseActionLocationDelegate> UseActionLocationHook;
         public static byte UseActionLocationDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
         {
             var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
-            if (ret > 0)
-                packetsSent = intervalPackets.Sum();
+            OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, ref ret);
             return ret;
         }
 
+        public delegate void ReceiveActionEffectEventDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock);
+        public static event ReceiveActionEffectEventDelegate OnReceiveActionEffect;
         public delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
         public static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
         public static void ReceiveActionEffectDetour(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail)
         {
             var oldLock = AnimationLock;
             ReceiveActionEffectHook.Original(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail);
-            var newLock = AnimationLock;
-
-            if (!NoClippy.Config.EnableAnimLockComp || oldLock == newLock) return;
-
-            LagCompensation.CompensateAnimationLock(oldLock, newLock);
+            OnReceiveActionEffect?.Invoke(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail, oldLock, AnimationLock);
         }
 
-        private static IntPtr _queueThresholdPtr = IntPtr.Zero;
+        private static IntPtr queueThresholdPtr = IntPtr.Zero;
         public static unsafe float QueueThreshold
         {
-            get => _queueThresholdPtr == IntPtr.Zero ? 0.5f : *(float*)_queueThresholdPtr;
+            get => queueThresholdPtr == IntPtr.Zero ? 0.5f : *(float*)queueThresholdPtr;
             set
             {
-                if (_queueThresholdPtr == IntPtr.Zero)
+                if (queueThresholdPtr == IntPtr.Zero)
                     SetupQueueThreshold();
 
-                *(float*)_queueThresholdPtr = value < 2.5f ? value : 10;
+                *(float*)queueThresholdPtr = value < 2.5f ? value : 10;
             }
         }
 
         private static AsmHook queueThresholdHook;
         public static void SetupQueueThreshold()
         {
-            _queueThresholdPtr = Marshal.AllocHGlobal(sizeof(float));
+            queueThresholdPtr = Marshal.AllocHGlobal(sizeof(float));
 
-            var ptrStr = BitConverter.GetBytes(_queueThresholdPtr.ToInt64()).Reverse()
+            var ptrStr = BitConverter.GetBytes(queueThresholdPtr.ToInt64()).Reverse()
                 .Aggregate(string.Empty, (current, b) => current + b.ToString("X2")) + "h";
             var asm = new[]
             {
@@ -101,15 +102,9 @@ namespace NoClippy
             queueThresholdHook.Enable();
         }
 
-        public static int packetsSent = 0;
-        private static float intervalPacketsTimer = 0;
-        private static int intervalPacketsIndex = 0;
-        private static readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
-        private static void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, Dalamud.Game.Network.NetworkMessageDirection direction)
-        {
-            if (!NoClippy.Config.EnableAnimLockComp || direction != Dalamud.Game.Network.NetworkMessageDirection.ZoneUp) return;
-            intervalPackets[intervalPacketsIndex]++;
-        }
+        public static event GameNetwork.OnNetworkMessageDelegate OnNetworkMessage;
+        private static void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction) =>
+            OnNetworkMessage?.Invoke(dataPtr, opCode, sourceActorId, targetActorId, direction);
 
         public static void Initialize()
         {
@@ -141,28 +136,25 @@ namespace NoClippy
             ReceiveActionEffectHook.Enable();
         }
 
-        public static void Update()
-        {
-            if (!NoClippy.Config.EnableAnimLockComp) return;
-
-            intervalPacketsTimer += ImGuiNET.ImGui.GetIO().DeltaTime;
-            while (intervalPacketsTimer >= 0.01f)
-            {
-                intervalPacketsTimer -= 0.01f;
-                intervalPacketsIndex = (intervalPacketsIndex + 1) % intervalPackets.Length;
-                intervalPackets[intervalPacketsIndex] = 0;
-            }
-        }
+        public static event Action OnUpdate;
+        public static void Update() => OnUpdate?.Invoke();
 
         public static void Dispose()
         {
             DalamudApi.GameNetwork.NetworkMessage -= NetworkMessage;
+
             UseActionHook?.Dispose();
+            OnUseAction = null;
             UseActionLocationHook?.Dispose();
+            OnUseActionLocation = null;
             ReceiveActionEffectHook?.Dispose();
+            OnReceiveActionEffect = null;
+
+            OnUpdate = null;
+
             queueThresholdHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;
-            Marshal.FreeHGlobal(_queueThresholdPtr);
+            Marshal.FreeHGlobal(queueThresholdPtr);
         }
     }
 }

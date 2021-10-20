@@ -25,6 +25,10 @@ namespace NoClippy
                 EnableAnimLockComp = false;
         }
 
-        public void Save() => DalamudApi.PluginInterface.SavePluginConfig(this);
+        public void Save()
+        {
+            Modules.Modules.CheckModules();
+            DalamudApi.PluginInterface.SavePluginConfig(this);
+        }
     }
 }
