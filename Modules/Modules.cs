@@ -11,7 +11,7 @@ namespace NoClippy.Modules
     {
         private class ModuleInfo
         {
-            public INoClippyModule module = null;
+            public Module module = null;
             public bool isEnabled = true;
         }
 
@@ -19,9 +19,9 @@ namespace NoClippy.Modules
         private static IOrderedEnumerable<ModuleInfo> drawOrder;
         public static void Initialize()
         {
-            foreach (var t in Assembly.GetExecutingAssembly().GetTypes().Where(t => t.IsAssignableTo(typeof(INoClippyModule)) && !t.IsInterface))
+            foreach (var t in Assembly.GetExecutingAssembly().GetTypes().Where(t => t.IsSubclassOf(typeof(Module)) && !t.IsAbstract))
             {
-                var module = (INoClippyModule)Activator.CreateInstance(t);
+                var module = (Module)Activator.CreateInstance(t);
                 if (module == null) continue;
 
                 if (module.IsEnabled)
@@ -44,7 +44,7 @@ namespace NoClippy.Modules
             drawOrder = modules.Values.OrderBy(info => info.module.DrawOrder);
         }
 
-        public static INoClippyModule GetInstance(Type type) => modules.TryGetValue(type, out var instance) ? instance.module : null;
+        public static Module GetInstance(Type type) => modules.TryGetValue(type, out var instance) ? instance.module : null;
 
         public static void CheckModules()
         {

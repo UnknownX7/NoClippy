@@ -11,17 +11,11 @@ namespace NoClippy
 // This is a module because why not
 namespace NoClippy.Modules
 {
-    public class Logging : INoClippyModule
+    public class Logging : Module
     {
-        public bool IsEnabled
-        {
-            get => true;
-            set { }
-        }
+        public override int DrawOrder => 8;
 
-        public int DrawOrder => 8;
-
-        public void DrawConfig()
+        public override void DrawConfig()
         {
             ImGui.Columns(2, null, false);
 
@@ -31,8 +25,5 @@ namespace NoClippy.Modules
 
             ImGui.Columns(1);
         }
-
-        public void Enable() { }
-        public void Disable() { }
     }
 }

@@ -13,7 +13,7 @@ namespace NoClippy
 
 namespace NoClippy.Modules
 {
-    public class Stats : INoClippyModule
+    public class Stats : Module
     {
         private DateTime begunEncounter = DateTime.MinValue;
         private ushort lastDetectedClip = 0;
@@ -21,13 +21,13 @@ namespace NoClippy.Modules
         private float encounterTotalClip = 0;
         private float encounterTotalWaste = 0;
 
-        public bool IsEnabled
+        public override bool IsEnabled
         {
             get => NoClippy.Config.EnableEncounterStats;
             set => NoClippy.Config.EnableEncounterStats = value;
         }
 
-        public int DrawOrder => 5;
+        public override int DrawOrder => 5;
 
         private void BeginEncounter()
         {
@@ -91,7 +91,7 @@ namespace NoClippy.Modules
             }
         }
 
-        public void DrawConfig()
+        public override void DrawConfig()
         {
             ImGui.Columns(2, null, false);
 
@@ -111,7 +111,7 @@ namespace NoClippy.Modules
             ImGui.Columns(1);
         }
 
-        public void Enable() => Game.OnUpdate += Update;
-        public void Disable() => Game.OnUpdate -= Update;
+        public override void Enable() => Game.OnUpdate += Update;
+        public override void Disable() => Game.OnUpdate -= Update;
     }
 }

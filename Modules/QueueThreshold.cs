@@ -14,18 +14,18 @@ namespace NoClippy
 
 namespace NoClippy.Modules
 {
-    public class QueueThreshold : INoClippyModule
+    public class QueueThreshold : Module
     {
         private IntPtr queueThresholdPtr = IntPtr.Zero;
         private AsmHook queueThresholdHook;
 
-        public bool IsEnabled
+        public override bool IsEnabled
         {
             get => NoClippy.Config.QueueThreshold != 0.5f;
             set => NoClippy.Config.QueueThreshold = value ? 1 : 0.5f;
         }
 
-        public int DrawOrder => 10;
+        public override int DrawOrder => 10;
 
         private unsafe float Threshold
         {
@@ -54,7 +54,7 @@ namespace NoClippy.Modules
             queueThresholdHook.Enable();
         }
 
-        public void DrawConfig()
+        public override void DrawConfig()
         {
             if (ImGui.SliderFloat("Queue Threshold", ref NoClippy.Config.QueueThreshold, 0, 2.5f, "%.1f"))
             {
@@ -65,7 +65,7 @@ namespace NoClippy.Modules
                 "\nDefault is 0.5, set it to 2.5 to always allow queuing.");
         }
 
-        public void Enable()
+        public override void Enable()
         {
             if (queueThresholdHook == null)
                 SetupQueueThreshold();
@@ -73,7 +73,7 @@ namespace NoClippy.Modules
             Threshold = NoClippy.Config.QueueThreshold;
         }
 
-        public void Disable()
+        public override void Disable()
         {
             queueThresholdHook?.Dispose();
             queueThresholdHook = null;

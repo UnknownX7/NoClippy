@@ -16,7 +16,7 @@ namespace NoClippy
 
 namespace NoClippy.Modules
 {
-    public class AnimationLock : INoClippyModule
+    public class AnimationLock : Module
     {
         // ALL INFO BELOW IS BASED ON MY FINDINGS AND I RESERVE THE RIGHT TO HAVE MISINTERPRETED SOMETHING, THANKS
         // The typical time range that passes for the client is never equal to ping, it always seems to be at least ping + server delay
@@ -44,13 +44,13 @@ namespace NoClippy.Modules
         private int intervalPacketsIndex = 0;
         private readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
 
-        public bool IsEnabled
+        public override bool IsEnabled
         {
             get => Config.EnableAnimLockComp;
             set => Config.EnableAnimLockComp = value;
         }
 
-        public int DrawOrder => 1;
+        public override int DrawOrder => 1;
 
         private float AverageDelay(float currentDelay, float weight) =>
             delay > 0
@@ -130,7 +130,7 @@ namespace NoClippy.Modules
             }
         }
 
-        public void DrawConfig()
+        public override void DrawConfig()
         {
             ImGui.Columns(2, null, false);
 
@@ -159,7 +159,7 @@ namespace NoClippy.Modules
             ImGui.Columns(1);
         }
 
-        public void Enable()
+        public override void Enable()
         {
             Game.OnUseAction += UseAction;
             Game.OnUseActionLocation += UseActionLocation;
@@ -168,7 +168,7 @@ namespace NoClippy.Modules
             Game.OnUpdate += Update;
         }
 
-        public void Disable()
+        public override void Disable()
         {
             Game.OnUseAction -= UseAction;
             Game.OnUseActionLocation -= UseActionLocation;
