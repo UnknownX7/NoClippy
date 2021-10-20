@@ -52,8 +52,6 @@ namespace NoClippy.Modules
 
         public int DrawOrder => 1;
 
-        public static INoClippyModule Instance => Modules.GetInstance(typeof(AnimationLock));
-
         private float AverageDelay(float currentDelay, float weight) =>
             delay > 0
                 ? delay = delay * (1 - weight) + currentDelay * weight

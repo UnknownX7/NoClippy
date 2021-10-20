@@ -20,25 +20,8 @@ namespace NoClippy
 
             Modules.Modules.Draw();
 
-            ImGui.Columns(2, "NoClippyConfigOptions", false);
+            ImGui.Columns(2, null, false);
 
-            //ImGui.NextColumn();
-            ImGui.Separator();
-
-            if (ImGui.Checkbox("Enable Encounter Stats", ref Config.EnableEncounterStats))
-                Config.Save();
-            PluginUI.SetItemTooltip("Tracks clips and wasted GCD time while in combat, and logs the total afterwards.");
-
-            ImGui.NextColumn();
-
-            if (Config.EnableEncounterStats)
-            {
-                if (ImGui.Checkbox("Enable Stats Logging", ref Config.EnableEncounterStatsLogging))
-                    Config.Save();
-                PluginUI.SetItemTooltip("Logs individual encounter clips and wasted GCD time.");
-            }
-
-            ImGui.NextColumn();
             ImGui.Separator();
 
             if (ImGui.Checkbox("Output to Chat Log", ref Config.LogToChat))

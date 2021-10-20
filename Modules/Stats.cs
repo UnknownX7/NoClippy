@@ -4,13 +4,30 @@ using ImGuiNET;
 
 namespace NoClippy
 {
-    public static class Stats
+    public partial class Configuration
+    {
+        public bool EnableEncounterStats = false;
+        public bool EnableEncounterStatsLogging = false;
+    }
+}
+
+namespace NoClippy.Modules
+{
+    public class Stats : INoClippyModule
     {
         private static DateTime begunEncounter = DateTime.MinValue;
         private static ushort lastDetectedClip = 0;
         private static float currentWastedGCD = 0;
         private static float encounterTotalClip = 0;
         private static float encounterTotalWaste = 0;
+
+        public bool IsEnabled
+        {
+            get => NoClippy.Config.EnableEncounterStats;
+            set => NoClippy.Config.EnableEncounterStats = value;
+        }
+
+        public int DrawOrder => 5;
 
         private static void BeginEncounter()
         {
@@ -58,10 +75,8 @@ namespace NoClippy
             }
         }
 
-        private static void UpdateEncounter()
+        private static void Update()
         {
-            if (!NoClippy.Config.EnableEncounterStats) return;
-
             if (DalamudApi.Condition[ConditionFlag.InCombat])
             {
                 if (begunEncounter == DateTime.MinValue)
@@ -76,6 +91,27 @@ namespace NoClippy
             }
         }
 
-        public static void Update() => UpdateEncounter();
+        public void DrawConfig()
+        {
+            ImGui.Columns(2, null, false);
+
+            if (ImGui.Checkbox("Enable Encounter Stats", ref NoClippy.Config.EnableEncounterStats))
+                NoClippy.Config.Save();
+            PluginUI.SetItemTooltip("Tracks clips and wasted GCD time while in combat, and logs the total afterwards.");
+
+            ImGui.NextColumn();
+
+            if (NoClippy.Config.EnableEncounterStats)
+            {
+                if (ImGui.Checkbox("Enable Stats Logging", ref NoClippy.Config.EnableEncounterStatsLogging))
+                    NoClippy.Config.Save();
+                PluginUI.SetItemTooltip("Logs individual encounter clips and wasted GCD time.");
+            }
+
+            ImGui.Columns(1);
+        }
+
+        public void Enable() => Game.OnUpdate += Update;
+        public void Disable() => Game.OnUpdate -= Update;
     }
 }

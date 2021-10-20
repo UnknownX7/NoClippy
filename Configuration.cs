@@ -6,8 +6,6 @@ namespace NoClippy
     {
         public int Version { get; set; }
 
-        public bool EnableEncounterStats = false;
-        public bool EnableEncounterStatsLogging = false;
         public bool LogToChat = false;
         public float QueueThreshold = 0.5f;
 
