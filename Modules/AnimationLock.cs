@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Network;
 using ImGuiNET;
@@ -11,6 +12,7 @@ namespace NoClippy
         public bool EnableAnimLockComp = true;
         public bool EnableLogging = false;
         public bool EnableDryRun = false;
+        public Dictionary<uint, float> AnimationLocks = new();
     }
 }
 
@@ -30,15 +32,8 @@ namespace NoClippy.Modules
 
         // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 GCD triple
 
-        // Simulates around 10 ms ping (spiking makes this look closer to 15-20 ms)
-        private const float MinSimDelay = 0.04f;
-        private const float MaxSimDelay = 0.05f;
-
-
+        // This module simulates around 10 ms ping inside instances (spiking makes this look closer to 15 ms)
         private float delay = -1;
-        private float simDelay = (MaxSimDelay - MinSimDelay) / 2f + MinSimDelay;
-        private readonly Random rand = new();
-
         private int packetsSent = 0;
         private float intervalPacketsTimer = 0;
         private int intervalPacketsIndex = 0;
@@ -55,9 +50,13 @@ namespace NoClippy.Modules
         private float AverageDelay(float currentDelay, float weight) =>
             delay > 0
                 ? delay = delay * (1 - weight) + currentDelay * weight
-                : delay = weight > 0.3f ? currentDelay : currentDelay * 0.75f; // Initial starting delay
+                : delay = currentDelay; // Initial starting delay
 
-        private float SimulateDelay() => simDelay = Math.Min(Math.Max(simDelay + (float)(rand.NextDouble() - 0.5) * 0.016f, MinSimDelay), MaxSimDelay);
+        private void UpdateDatabase(uint action, float animLock)
+        {
+            Config.AnimationLocks[action] = animLock;
+            Config.Save();
+        }
 
         private void UseAction(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, ref byte ret)
         {
@@ -71,46 +70,54 @@ namespace NoClippy.Modules
             packetsSent = intervalPackets.Sum();
         }
 
-        private void ReceiveActionEffect(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock)
+        private unsafe void ReceiveActionEffect(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock)
         {
-            if (oldLock == newLock) return;
-
-            // Ignore cast locks (caster tax, teleport, lb)
-            if (Game.IsCasting || newLock <= 0.11f) // Unfortunately this isn't always true for casting if the user is above 500 ms ping
+            try
             {
-                if (Config.EnableLogging)
-                    PrintLog($"Ignored reducing server cast lock of {F2MS(newLock)} ms");
-                return;
+                if (oldLock == newLock) return;
+
+                // Ignore cast locks (caster tax, teleport, lb)
+                if (Game.IsCasting || newLock <= 0.11f) // Unfortunately this isn't always true for casting if the user is above 500 ms ping
+                {
+                    if (Config.EnableLogging)
+                        PrintLog($"Ignored reducing server cast lock of {F2MS(newLock)} ms");
+                    return;
+                }
+
+                // Special case to (mostly) prevent accidentally using XivAlexander at the same time
+                var isUsingAlexander = newLock % 0.01 is >= 0.0005f and <= 0.0095f;
+                if (!Config.EnableDryRun && isUsingAlexander)
+                {
+                    Config.EnableDryRun = true;
+                    PrintError($"Unexpected lock of {F2MS(newLock)} ms, dry run has been enabled");
+                }
+
+                if (!isUsingAlexander && !Game.IsCasting)
+                    UpdateDatabase(*(uint*)(effectHeader + 0x8), *(float*)(effectHeader + 0x10));
+
+                var responseTime = Game.DefaultClientAnimationLock - oldLock;
+
+                var prevAverage = delay;
+                var newAverage = AverageDelay(responseTime, packetsSent > 1 ? 0.1f : 1f);
+                var average = prevAverage > 0 ? prevAverage : newAverage;
+
+                var spikeMult = Math.Max(responseTime / average, 1);
+                var addedDelay = 0.04f * spikeMult;
+
+                var delayOverride = Math.Min(Math.Max(newLock - responseTime + addedDelay, 0), newLock);
+
+                if (!Config.EnableDryRun)
+                    Game.AnimationLock = delayOverride;
+
+                if (!Config.EnableLogging) return;
+
+                PrintLog($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}" +
+                    $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} (+{(spikeMult - 1):P0}) ms" +
+                    $"{(Config.EnableDryRun && newLock <= 0.6f && isUsingAlexander ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
+                    $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock)}) ms" +
+                    $" || Packets: {packetsSent}");
             }
-
-            // Special case to (mostly) prevent accidentally using XivAlexander at the same time
-            if (!Config.EnableDryRun && newLock % 0.01 is >= 0.0005f and <= 0.0095f)
-            {
-                Config.EnableDryRun = true;
-                PrintError($"Unexpected lock of {F2MS(newLock)} ms, dry run has been enabled");
-            }
-
-            var responseTime = Game.DefaultClientAnimationLock - oldLock;
-
-            var prevAverage = delay;
-            var newAverage = AverageDelay(responseTime, packetsSent > 1 ? 0.1f : 0.5f);
-            var average = prevAverage > 0 ? prevAverage : newAverage;
-
-            var spikeMult = 1 + Math.Max(responseTime - average, 0) / newAverage;
-            var addedDelay = SimulateDelay() * spikeMult;
-
-            var delayOverride = Math.Min(Math.Max(newLock - responseTime + addedDelay, 0), newLock);
-
-            if (!Config.EnableDryRun)
-                Game.AnimationLock = delayOverride;
-
-            if (!Config.EnableLogging && oldLock != 0) return;
-
-            PrintLog($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}" +
-                $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} ({F2MS(simDelay)}) (+{(spikeMult - 1):P0}) ms" +
-                $"{(Config.EnableDryRun && newLock <= 0.6f && newLock % 0.01 is >= 0.0005f and <= 0.0095f ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
-                $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock)}) ms" +
-                $" || Packets: {packetsSent}");
+            catch { PrintError("Error in AnimationLock Module"); }
         }
 
         private void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
