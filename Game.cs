@@ -13,19 +13,19 @@ namespace NoClippy
         public static unsafe ref float AnimationLock => ref *(float*)animationLockPtr;
 
         private static IntPtr isCastingPtr;
-        public static unsafe ref bool IsCasting => ref *(bool*)isCastingPtr;
+        public static unsafe bool IsCasting => *(bool*)isCastingPtr;
 
         private static IntPtr comboTimerPtr;
-        public static unsafe ref float ComboTimer => ref *(float*)comboTimerPtr;
+        public static unsafe float ComboTimer => *(float*)comboTimerPtr;
 
         private static IntPtr isQueuedPtr;
-        public static unsafe ref bool IsQueued => ref *(bool*)isQueuedPtr;
+        public static unsafe bool IsQueued => *(bool*)isQueuedPtr;
 
         private static IntPtr actionCountPtr;
-        public static unsafe ref ushort ActionCount => ref *(ushort*)actionCountPtr;
+        public static unsafe ushort ActionCount => *(ushort*)actionCountPtr;
 
         private static IntPtr isGCDRecastActivePtr;
-        public static unsafe ref bool IsGCDRecastActive => ref *(bool*)isGCDRecastActivePtr;
+        public static unsafe bool IsGCDRecastActive => *(bool*)isGCDRecastActivePtr;
 
         private static IntPtr defaultClientAnimationLockPtr;
         public static unsafe float DefaultClientAnimationLock
@@ -40,9 +40,9 @@ namespace NoClippy
 
         public delegate void UseActionEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, ref byte ret);
         public static event UseActionEventDelegate OnUseAction;
-        public delegate byte UseActionDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp);
-        public static Hook<UseActionDelegate> UseActionHook;
-        public static byte UseActionDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp)
+        private delegate byte UseActionDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp);
+        private static Hook<UseActionDelegate> UseActionHook;
+        private static byte UseActionDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp)
         {
             var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp);
             OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, ref ret);
@@ -51,9 +51,9 @@ namespace NoClippy
 
         public delegate void UseActionLocationEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, ref byte ret);
         public static event UseActionLocationEventDelegate OnUseActionLocation;
-        public delegate byte UseActionLocationDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
-        public static Hook<UseActionLocationDelegate> UseActionLocationHook;
-        public static byte UseActionLocationDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
+        private delegate byte UseActionLocationDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
+        private static Hook<UseActionLocationDelegate> UseActionLocationHook;
+        private static byte UseActionLocationDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
         {
             var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
             OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, ref ret);
@@ -62,9 +62,9 @@ namespace NoClippy
 
         public delegate void ReceiveActionEffectEventDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock);
         public static event ReceiveActionEffectEventDelegate OnReceiveActionEffect;
-        public delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
-        public static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
-        public static void ReceiveActionEffectDetour(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail)
+        private delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
+        private static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
+        private static void ReceiveActionEffectDetour(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail)
         {
             var oldLock = AnimationLock;
             ReceiveActionEffectHook.Original(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail);
