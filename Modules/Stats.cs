@@ -15,11 +15,11 @@ namespace NoClippy.Modules
 {
     public class Stats : INoClippyModule
     {
-        private static DateTime begunEncounter = DateTime.MinValue;
-        private static ushort lastDetectedClip = 0;
-        private static float currentWastedGCD = 0;
-        private static float encounterTotalClip = 0;
-        private static float encounterTotalWaste = 0;
+        private DateTime begunEncounter = DateTime.MinValue;
+        private ushort lastDetectedClip = 0;
+        private float currentWastedGCD = 0;
+        private float encounterTotalClip = 0;
+        private float encounterTotalWaste = 0;
 
         public bool IsEnabled
         {
@@ -29,7 +29,7 @@ namespace NoClippy.Modules
 
         public int DrawOrder => 5;
 
-        private static void BeginEncounter()
+        private void BeginEncounter()
         {
             begunEncounter = DateTime.Now;
             encounterTotalClip = 0;
@@ -37,7 +37,7 @@ namespace NoClippy.Modules
             currentWastedGCD = 0;
         }
 
-        private static void EndEncounter()
+        private void EndEncounter()
         {
             var span = DateTime.Now - begunEncounter;
             var formattedTime = $"{Math.Floor(span.TotalMinutes):00}:{span.Seconds:00}";
@@ -45,7 +45,7 @@ namespace NoClippy.Modules
             begunEncounter = DateTime.MinValue;
         }
 
-        private static void DetectClipping()
+        private void DetectClipping()
         {
             if (lastDetectedClip == Game.ActionCount || Game.IsGCDRecastActive || Game.AnimationLock <= 0) return;
 
@@ -59,7 +59,7 @@ namespace NoClippy.Modules
             lastDetectedClip = Game.ActionCount;
         }
 
-        private static void DetectWastedGCD()
+        private void DetectWastedGCD()
         {
             if (!Game.IsGCDRecastActive && !Game.IsQueued)
             {
@@ -75,7 +75,7 @@ namespace NoClippy.Modules
             }
         }
 
-        private static void Update()
+        private void Update()
         {
             if (DalamudApi.Condition[ConditionFlag.InCombat])
             {

@@ -71,37 +71,6 @@ namespace NoClippy
             OnReceiveActionEffect?.Invoke(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail, oldLock, AnimationLock);
         }
 
-        private static IntPtr queueThresholdPtr = IntPtr.Zero;
-        public static unsafe float QueueThreshold
-        {
-            get => queueThresholdPtr == IntPtr.Zero ? 0.5f : *(float*)queueThresholdPtr;
-            set
-            {
-                if (queueThresholdPtr == IntPtr.Zero)
-                    SetupQueueThreshold();
-
-                *(float*)queueThresholdPtr = value < 2.5f ? value : 10;
-            }
-        }
-
-        private static AsmHook queueThresholdHook;
-        public static void SetupQueueThreshold()
-        {
-            queueThresholdPtr = Marshal.AllocHGlobal(sizeof(float));
-
-            var ptrStr = BitConverter.GetBytes(queueThresholdPtr.ToInt64()).Reverse()
-                .Aggregate(string.Empty, (current, b) => current + b.ToString("X2")) + "h";
-            var asm = new[]
-            {
-                "use64",
-                $"mov rax, {ptrStr}",
-                "comiss xmm1, [rax]"
-            };
-
-            queueThresholdHook = new(DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B"), asm, "QueueThresholdHook", AsmHookBehaviour.DoNotExecuteOriginal);
-            queueThresholdHook.Enable();
-        }
-
         public static event GameNetwork.OnNetworkMessageDelegate OnNetworkMessage;
         private static void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction) =>
             OnNetworkMessage?.Invoke(dataPtr, opCode, sourceActorId, targetActorId, direction);
@@ -128,9 +97,6 @@ namespace NoClippy
 
             DalamudApi.GameNetwork.NetworkMessage += NetworkMessage;
 
-            if (NoClippy.Config.QueueThreshold != 0.5f)
-                QueueThreshold = NoClippy.Config.QueueThreshold;
-
             UseActionHook.Enable();
             UseActionLocationHook.Enable();
             ReceiveActionEffectHook.Enable();
@@ -152,9 +118,7 @@ namespace NoClippy
 
             OnUpdate = null;
 
-            queueThresholdHook?.Dispose();
             DefaultClientAnimationLock = 0.5f;
-            Marshal.FreeHGlobal(queueThresholdPtr);
         }
     }
 }

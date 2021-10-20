@@ -32,7 +32,7 @@ namespace NoClippy.Modules
 
         // Simulates around 10 ms ping (spiking makes this look closer to 15-20 ms)
         private const float MinSimDelay = 0.04f;
-        private const float MaxSimDelay = 0.06f;
+        private const float MaxSimDelay = 0.05f;
 
 
         private float delay = -1;

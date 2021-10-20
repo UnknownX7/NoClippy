@@ -6,9 +6,6 @@ namespace NoClippy
     {
         public int Version { get; set; }
 
-        public bool LogToChat = false;
-        public float QueueThreshold = 0.5f;
-
         public void Initialize() { }
 
         public void Save()
