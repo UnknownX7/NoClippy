@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Dalamud.Logging;
+using ImGuiNET;
 
 namespace NoClippy.Modules
 {
@@ -15,6 +16,7 @@ namespace NoClippy.Modules
         }
 
         private static readonly Dictionary<Type, ModuleInfo> modules = new();
+        private static IOrderedEnumerable<ModuleInfo> drawOrder;
         public static void Initialize()
         {
             foreach (var t in Assembly.GetExecutingAssembly().GetTypes().Where(t => t.IsAssignableTo(typeof(INoClippyModule)) && !t.IsInterface))
@@ -38,6 +40,8 @@ namespace NoClippy.Modules
 
                 modules.Add(t, new ModuleInfo{ module = module, isEnabled = module.IsEnabled });
             }
+
+            drawOrder = modules.Values.OrderBy(info => info.module.DrawOrder);
         }
 
         public static INoClippyModule GetInstance(Type type) => modules.TryGetValue(type, out var instance) ? instance.module : null;
@@ -72,6 +76,18 @@ namespace NoClippy.Modules
         {
             foreach (var (_, info) in modules.Where(kv => kv.Value.isEnabled))
                 info.module.Disable();
+        }
+
+        public static void Draw()
+        {
+            var first = true;
+            foreach (var info in drawOrder)
+            {
+                if (!first)
+                    ImGui.Separator();
+                info.module.DrawConfig();
+                first = false;
+            }
         }
     }
 }

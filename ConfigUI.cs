@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Numerics;
+﻿using System.Numerics;
 using Dalamud.Interface;
 using ImGuiNET;
 using static NoClippy.NoClippy;
@@ -18,31 +17,12 @@ namespace NoClippy
             //ImGui.SetNextWindowSizeConstraints(new Vector2(400, 200) * ImGuiHelpers.GlobalScale, new Vector2(10000));
             ImGui.SetNextWindowSize(new Vector2(400, 0) * ImGuiHelpers.GlobalScale);
             ImGui.Begin("NoClippy Configuration", ref isVisible, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse);
+
+            Modules.Modules.Draw();
+
             ImGui.Columns(2, "NoClippyConfigOptions", false);
 
-            if (ImGui.Checkbox("Enable Anim. Lock Comp.", ref Config.EnableAnimLockComp))
-                Config.Save();
-            PluginUI.SetItemTooltip("Reduces the animation lock to simulate about 10 ms ping," +
-                "\nplease enable dry run if you just want logging with XivAlexander.");
-
-            ImGui.NextColumn();
-
-            if (Config.EnableAnimLockComp)
-            {
-                ImGui.NextColumn();
-
-                if (ImGui.Checkbox("Enable Logging", ref Config.EnableLogging))
-                    Config.Save();
-                //PluginUI.SetItemTooltip("Logs information.");
-
-                ImGui.NextColumn();
-
-                if (ImGui.Checkbox("Dry Run", ref Config.EnableDryRun))
-                    Config.Save();
-                PluginUI.SetItemTooltip("The plugin will still log and perform calculations, but no in-game values will be overwritten.");
-            }
-
-            ImGui.NextColumn();
+            //ImGui.NextColumn();
             ImGui.Separator();
 
             if (ImGui.Checkbox("Enable Encounter Stats", ref Config.EnableEncounterStats))

@@ -1,7 +1,18 @@
 using System;
 using System.Linq;
 using Dalamud.Game.Network;
+using ImGuiNET;
 using static NoClippy.NoClippy;
+
+namespace NoClippy
+{
+    public partial class Configuration
+    {
+        public bool EnableAnimLockComp = true;
+        public bool EnableLogging = false;
+        public bool EnableDryRun = false;
+    }
+}
 
 namespace NoClippy.Modules
 {
@@ -38,6 +49,8 @@ namespace NoClippy.Modules
             get => Config.EnableAnimLockComp;
             set => Config.EnableAnimLockComp = value;
         }
+
+        public int DrawOrder => 1;
 
         public static INoClippyModule Instance => Modules.GetInstance(typeof(AnimationLock));
 
@@ -117,6 +130,35 @@ namespace NoClippy.Modules
                 intervalPacketsIndex = (intervalPacketsIndex + 1) % intervalPackets.Length;
                 intervalPackets[intervalPacketsIndex] = 0;
             }
+        }
+
+        public void DrawConfig()
+        {
+            ImGui.Columns(2, null, false);
+
+            if (ImGui.Checkbox("Enable Anim. Lock Comp.", ref Config.EnableAnimLockComp))
+                Config.Save();
+            PluginUI.SetItemTooltip("Reduces the animation lock to simulate about 10 ms ping," +
+                "\nplease enable dry run if you just want logging with XivAlexander.");
+
+            ImGui.NextColumn();
+
+            if (Config.EnableAnimLockComp)
+            {
+                ImGui.NextColumn();
+
+                if (ImGui.Checkbox("Enable Logging", ref Config.EnableLogging))
+                    Config.Save();
+                //PluginUI.SetItemTooltip("Logs information.");
+
+                ImGui.NextColumn();
+
+                if (ImGui.Checkbox("Dry Run", ref Config.EnableDryRun))
+                    Config.Save();
+                PluginUI.SetItemTooltip("The plugin will still log and perform calculations, but no in-game values will be overwritten.");
+            }
+
+            ImGui.Columns(1);
         }
 
         public void Enable()
