@@ -1,34 +1,35 @@
 using System;
-using System.Linq;
-using System.Runtime.InteropServices;
 using Dalamud;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
 
 namespace NoClippy
 {
-    public static class Game
+    public static unsafe class Game
     {
         private static IntPtr animationLockPtr;
-        public static unsafe ref float AnimationLock => ref *(float*)animationLockPtr;
+        public static ref float AnimationLock => ref *(float*)animationLockPtr;
 
         private static IntPtr isCastingPtr;
-        public static unsafe bool IsCasting => *(bool*)isCastingPtr;
+        public static bool IsCasting => *(bool*)isCastingPtr;
 
         private static IntPtr comboTimerPtr;
-        public static unsafe float ComboTimer => *(float*)comboTimerPtr;
+        public static float ComboTimer => *(float*)comboTimerPtr;
 
         private static IntPtr isQueuedPtr;
-        public static unsafe bool IsQueued => *(bool*)isQueuedPtr;
+        public static bool IsQueued => *(bool*)isQueuedPtr;
 
         private static IntPtr actionCountPtr;
-        public static unsafe ushort ActionCount => *(ushort*)actionCountPtr;
+        public static ushort ActionCount => *(ushort*)actionCountPtr;
+
+        private static IntPtr finishedActionCountPtr;
+        public static ushort FinishedActionCount => *(ushort*)finishedActionCountPtr;
 
         private static IntPtr isGCDRecastActivePtr;
-        public static unsafe bool IsGCDRecastActive => *(bool*)isGCDRecastActivePtr;
+        public static bool IsGCDRecastActive => *(bool*)isGCDRecastActivePtr;
 
         private static IntPtr defaultClientAnimationLockPtr;
-        public static unsafe float DefaultClientAnimationLock
+        public static float DefaultClientAnimationLock
         {
             get => *(float*)defaultClientAnimationLockPtr;
             set
@@ -60,6 +61,40 @@ namespace NoClippy
             return ret;
         }
 
+        // Not called for ground targets
+        public delegate void SendActionDelegate(IntPtr a1, byte a2, int action, short sequence, long a5, long a6, long a7, long a8, long a9);
+        public static event SendActionDelegate OnSendAction;
+        private static Hook<SendActionDelegate> SendActionHook;
+        private static void SendActionDetour(IntPtr a1, byte a2, int action, short sequence, long a5, long a6, long a7, long a8, long a9)
+        {
+            SendActionHook.Original(a1, a2, action, sequence, a5, a6, a7, a8, a9);
+            OnSendAction?.Invoke(a1, a2, action, sequence, a5, a6, a7, a8, a9);
+        }
+
+        private static bool invokeCastInterrupt = false;
+        public delegate void CastBeginDelegate(ulong objectID, IntPtr packetData);
+        public static event CastBeginDelegate OnCastBegin;
+        private static Hook<CastBeginDelegate> CastBeginHook;
+        private static void CastBeginDetour(ulong objectID, IntPtr packetData)
+        {
+            CastBeginHook.Original(objectID, packetData);
+            if (objectID != DalamudApi.ClientState.LocalPlayer?.ObjectId) return;
+            OnCastBegin?.Invoke(objectID, packetData);
+            invokeCastInterrupt = true;
+        }
+
+        // Seems to always be called twice?
+        public delegate void CastInterruptDelegate(IntPtr actionManager, uint actionType, uint actionID);
+        public static event CastInterruptDelegate OnCastInterrupt;
+        private static Hook<CastInterruptDelegate> CastInterruptHook;
+        private static void CastInterruptDetour(IntPtr actionManager, uint actionType, uint actionID)
+        {
+            CastInterruptHook.Original(actionManager, actionType, actionID);
+            if (!invokeCastInterrupt) return;
+            OnCastInterrupt?.Invoke(actionManager, actionType, actionID);
+            invokeCastInterrupt = false;
+        }
+
         public delegate void ReceiveActionEffectEventDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock);
         public static event ReceiveActionEffectEventDelegate OnReceiveActionEffect;
         private delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
@@ -88,6 +123,9 @@ namespace NoClippy
 
             UseActionHook = new Hook<UseActionDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 89 9F BC 76 02 00"), UseActionDetour);
             UseActionLocationHook = new Hook<UseActionLocationDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 5C 24 50 0F B6 F0"), UseActionLocationDetour);
+            SendActionHook = new Hook<SendActionDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? F3 0F 10 3D ?? ?? ?? ?? 48 8D 4D BF"), SendActionDetour); // Found inside UseActionLocation
+            CastBeginHook = new Hook<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 55 56 48 81 EC A8 00 00 00 48 8B EA"), CastBeginDetour); // Bad sig, found within ActorCast packet
+            CastInterruptHook = new Hook<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? EB 30 0F 57 C0"), CastInterruptDetour); // Found inside ActorControl (15) packet
             ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
 
             defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F") + 0xA;
@@ -99,6 +137,9 @@ namespace NoClippy
 
             UseActionHook.Enable();
             UseActionLocationHook.Enable();
+            SendActionHook.Enable();
+            CastBeginHook.Enable();
+            CastInterruptHook.Enable();
             ReceiveActionEffectHook.Enable();
         }
 
@@ -113,6 +154,12 @@ namespace NoClippy
             OnUseAction = null;
             UseActionLocationHook?.Dispose();
             OnUseActionLocation = null;
+            SendActionHook.Dispose();
+            OnSendAction = null;
+            CastBeginHook.Dispose();
+            OnCastBegin = null;
+            CastInterruptHook.Dispose();
+            OnCastInterrupt = null;
             ReceiveActionEffectHook?.Dispose();
             OnReceiveActionEffect = null;
 

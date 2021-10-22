@@ -35,6 +35,7 @@ namespace NoClippy.Modules
         // This module simulates around 10 ms ping inside instances (spiking makes this look closer to 15 ms)
         private float delay = -1;
         private int packetsSent = 0;
+        private bool isCasting = false;
         private float intervalPacketsTimer = 0;
         private int intervalPacketsIndex = 0;
         private readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
@@ -52,16 +53,10 @@ namespace NoClippy.Modules
                 ? delay = delay * (1 - weight) + currentDelay * weight
                 : delay = currentDelay; // Initial starting delay
 
-        private void UpdateDatabase(uint action, float animLock)
+        private static void UpdateDatabase(uint action, float animLock)
         {
             Config.AnimationLocks[action] = animLock;
             Config.Save();
-        }
-
-        private void UseAction(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, ref byte ret)
-        {
-            if (ret == 0 || useType != 1 && Game.IsQueued) return;
-            packetsSent = intervalPackets.Sum();
         }
 
         private void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, ref byte ret)
@@ -70,6 +65,9 @@ namespace NoClippy.Modules
             packetsSent = intervalPackets.Sum();
         }
 
+        private void CastBegin(ulong objectID, IntPtr packetData) => isCasting = true;
+        private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID) => isCasting = false;
+
         private unsafe void ReceiveActionEffect(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock)
         {
             try
@@ -77,8 +75,9 @@ namespace NoClippy.Modules
                 if (oldLock == newLock) return;
 
                 // Ignore cast locks (caster tax, teleport, lb)
-                if (Game.IsCasting || newLock <= 0.11f) // Unfortunately this isn't always true for casting if the user is above 500 ms ping
+                if (isCasting)
                 {
+                    isCasting = false;
                     if (Config.EnableLogging)
                         PrintLog($"Ignored reducing server cast lock of {F2MS(newLock)} ms");
                     return;
@@ -168,8 +167,9 @@ namespace NoClippy.Modules
 
         public override void Enable()
         {
-            Game.OnUseAction += UseAction;
             Game.OnUseActionLocation += UseActionLocation;
+            Game.OnCastBegin += CastBegin;
+            Game.OnCastInterrupt += CastInterrupt;
             Game.OnReceiveActionEffect += ReceiveActionEffect;
             Game.OnNetworkMessage += NetworkMessage;
             Game.OnUpdate += Update;
@@ -177,8 +177,9 @@ namespace NoClippy.Modules
 
         public override void Disable()
         {
-            Game.OnUseAction -= UseAction;
             Game.OnUseActionLocation -= UseActionLocation;
+            Game.OnCastBegin -= CastBegin;
+            Game.OnCastInterrupt -= CastInterrupt;
             Game.OnReceiveActionEffect -= ReceiveActionEffect;
             Game.OnNetworkMessage -= NetworkMessage;
             Game.OnUpdate -= Update;
