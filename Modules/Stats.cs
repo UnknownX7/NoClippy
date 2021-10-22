@@ -15,12 +15,6 @@ namespace NoClippy.Modules
 {
     public class Stats : Module
     {
-        private DateTime begunEncounter = DateTime.MinValue;
-        private ushort lastDetectedClip = 0;
-        private float currentWastedGCD = 0;
-        private float encounterTotalClip = 0;
-        private float encounterTotalWaste = 0;
-
         public override bool IsEnabled
         {
             get => NoClippy.Config.EnableEncounterStats;
@@ -28,6 +22,12 @@ namespace NoClippy.Modules
         }
 
         public override int DrawOrder => 5;
+
+        private DateTime begunEncounter = DateTime.MinValue;
+        private ushort lastDetectedClip = 0;
+        private float currentWastedGCD = 0;
+        private float encounterTotalClip = 0;
+        private float encounterTotalWaste = 0;
 
         private void BeginEncounter()
         {

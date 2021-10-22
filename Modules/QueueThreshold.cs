@@ -16,9 +16,6 @@ namespace NoClippy.Modules
 {
     public class QueueThreshold : Module
     {
-        private IntPtr queueThresholdPtr = IntPtr.Zero;
-        private AsmHook queueThresholdHook;
-
         public override bool IsEnabled
         {
             get => NoClippy.Config.QueueThreshold != 0.5f;
@@ -26,6 +23,9 @@ namespace NoClippy.Modules
         }
 
         public override int DrawOrder => 10;
+
+        private IntPtr queueThresholdPtr = IntPtr.Zero;
+        private AsmHook queueThresholdHook;
 
         private unsafe float Threshold
         {

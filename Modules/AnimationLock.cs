@@ -33,12 +33,6 @@ namespace NoClippy.Modules
         // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 GCD triple
 
         // This module simulates around 10 ms ping inside instances (spiking makes this look closer to 15 ms)
-        private float delay = -1;
-        private int packetsSent = 0;
-        private bool isCasting = false;
-        private float intervalPacketsTimer = 0;
-        private int intervalPacketsIndex = 0;
-        private readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
 
         public override bool IsEnabled
         {
@@ -47,6 +41,13 @@ namespace NoClippy.Modules
         }
 
         public override int DrawOrder => 1;
+
+        private float delay = -1;
+        private int packetsSent = 0;
+        private bool isCasting = false;
+        private float intervalPacketsTimer = 0;
+        private int intervalPacketsIndex = 0;
+        private readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
 
         private float AverageDelay(float currentDelay, float weight) =>
             delay > 0
@@ -59,12 +60,7 @@ namespace NoClippy.Modules
             Config.Save();
         }
 
-        private void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, ref byte ret)
-        {
-            if (ret == 0) return;
-            packetsSent = intervalPackets.Sum();
-        }
-
+        private void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param) => packetsSent = intervalPackets.Sum();
         private void CastBegin(ulong objectID, IntPtr packetData) => isCasting = true;
         private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID) => isCasting = false;
 

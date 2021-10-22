@@ -39,25 +39,27 @@ namespace NoClippy
             }
         }
 
-        public delegate void UseActionEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, ref byte ret);
+        public delegate void UseActionEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp);
         public static event UseActionEventDelegate OnUseAction;
         private delegate byte UseActionDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp);
         private static Hook<UseActionDelegate> UseActionHook;
         private static byte UseActionDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp)
         {
             var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp);
-            OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, ref ret);
+            if (ret > 0)
+                OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp);
             return ret;
         }
 
-        public delegate void UseActionLocationEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, ref byte ret);
+        public delegate void UseActionLocationEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
         public static event UseActionLocationEventDelegate OnUseActionLocation;
         private delegate byte UseActionLocationDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
         private static Hook<UseActionLocationDelegate> UseActionLocationHook;
         private static byte UseActionLocationDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
         {
             var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
-            OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, ref ret);
+            if (ret > 0)
+                OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
             return ret;
         }
 
@@ -118,6 +120,7 @@ namespace NoClippy
             comboTimerPtr = actionManager + 0x60;
             isQueuedPtr = actionManager + 0x68;
             actionCountPtr = actionManager + 0x110;
+            finishedActionCountPtr = actionManager + 0x112;
             isGCDRecastActivePtr = actionManager + 0x610;
             // 0x614 is previous gcd skill, 0x618 is current gcd recast time (counts up), 0x61C is gcd recast (counted up to)
 
