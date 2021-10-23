@@ -1,5 +1,6 @@
 using System;
 using Dalamud;
+using Dalamud.Game.ClientState.Statuses;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
 
@@ -108,6 +109,30 @@ namespace NoClippy
             OnReceiveActionEffect?.Invoke(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail, oldLock, AnimationLock);
         }
 
+        public delegate void UpdateStatusListEventDelegate(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID);
+        public static event UpdateStatusListEventDelegate OnUpdateStatusList;
+        //public static event UpdateStatusDelegate OnUpdateStatus;
+        private delegate void UpdateStatusDelegate(IntPtr status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
+        private static Hook<UpdateStatusDelegate> UpdateStatusHook;
+        private static void UpdateStatusDetour(IntPtr status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
+        {
+            UpdateStatusHook.Original(status, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
+            /*if (DalamudApi.ClientState.LocalPlayer is not { } p
+                || status.ToInt64() < p.StatusList.Address.ToInt64()
+                || status.ToInt64() > p.StatusList.GetStatusAddress(p.StatusList.Length - 1).ToInt64())
+                return;
+            OnUpdateStatus?.Invoke(status, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);*/
+            if (DalamudApi.ClientState.LocalPlayer is not { } p
+                || slot != p.StatusList.Length - 1
+                || status.ToInt64() < p.StatusList.Address.ToInt64()
+                || status.ToInt64() > p.StatusList.GetStatusAddress(p.StatusList.Length - 1).ToInt64())
+                return;
+            if (individualUpdate)
+                OnUpdateStatusList?.Invoke(p.StatusList, slot, statusID, remainingTime, stackParam, sourceID);
+            else
+                OnUpdateStatusList?.Invoke(p.StatusList, -1, 0, 0, 0, 0);
+        }
+
         public static event GameNetwork.OnNetworkMessageDelegate OnNetworkMessage;
         private static void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction) =>
             OnNetworkMessage?.Invoke(dataPtr, opCode, sourceActorId, targetActorId, direction);
@@ -130,6 +155,7 @@ namespace NoClippy
             CastBeginHook = new Hook<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 55 56 48 81 EC A8 00 00 00 48 8B EA"), CastBeginDetour); // Bad sig, found within ActorCast packet
             CastInterruptHook = new Hook<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? EB 30 0F 57 C0"), CastInterruptDetour); // Found inside ActorControl (15) packet
             ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
+            UpdateStatusHook = new Hook<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? FF C6 48 8D 5B 0C"), UpdateStatusDetour);
 
             defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F") + 0xA;
 
@@ -144,6 +170,7 @@ namespace NoClippy
             CastBeginHook.Enable();
             CastInterruptHook.Enable();
             ReceiveActionEffectHook.Enable();
+            UpdateStatusHook.Enable();
         }
 
         public static event Action OnUpdate;
@@ -165,6 +192,9 @@ namespace NoClippy
             OnCastInterrupt = null;
             ReceiveActionEffectHook?.Dispose();
             OnReceiveActionEffect = null;
+            UpdateStatusHook?.Dispose();
+            OnUpdateStatusList = null;
+            //OnUpdateStatus = null;
 
             OnUpdate = null;
 

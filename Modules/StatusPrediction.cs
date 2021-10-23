@@ -21,27 +21,52 @@ namespace NoClippy.Modules
         private ushort predictedStatus = 0;
         private byte predictedStatusStacks = 0;
         private byte predictedStatusParam = 0;
-        private float timeRemaining = 0;
+        private float predictionTimer = 0;
+        private short currentSlot = -1;
 
-        private void SetPredictedStatus(ushort status, byte stacks, byte param)
+        private void SetPredictedStatus(ushort status = 0, byte stacks = 0, byte param = 0, float time = 0.75f)
         {
-            predictedStatus = status;
-            predictedStatusStacks = stacks;
-            predictedStatusParam = param;
-            timeRemaining = 0.8f;
+            if (status != 0)
+            {
+                var p = DalamudApi.ClientState.LocalPlayer;
+                if (currentSlot >= 0 && p != null)
+                {
+                    predictionTimer = -1;
+                    UpdateStatusList(p.StatusList, -1, 0, 0, 0, 0);
+                }
+
+                predictedStatus = status;
+                predictedStatusStacks = stacks;
+                predictedStatusParam = param;
+                predictionTimer = time;
+                currentSlot = -1;
+
+                Game.OnUpdate += Update;
+                Game.OnUpdateStatusList += UpdateStatusList;
+
+                if (p != null)
+                    UpdateStatusList(p.StatusList, -1, 0, 0, 0, 0);
+            }
+            else
+            {
+                Game.OnUpdate -= Update;
+                Game.OnUpdateStatusList -= UpdateStatusList;
+            }
         }
 
-        private static bool TryGetFreeStatus(StatusList statuses, out IntPtr statusPtr)
+        private static bool TryGetFreeStatus(StatusList statuses, out short slot, out IntPtr statusPtr)
         {
-            for (int i = 0; i < statuses.Length; i++)
+            for (short i = 0; i < statuses.Length; i++)
             {
                 var status = statuses[i];
                 if (status != null && IsStatusValid(status.Address)) continue;
                 statusPtr = statuses.GetStatusAddress(i);
+                slot = i;
                 return true;
             }
 
             statusPtr = IntPtr.Zero;
+            slot = -1;
             return false;
         }
 
@@ -66,47 +91,50 @@ namespace NoClippy.Modules
             switch (actionID)
             {
                 case 7421 when NoClippy.Config.PredictInstantCasts: // Triplecast
-                    SetPredictedStatus(1211, 3, 0);
+                    SetPredictedStatus(1211, 3);
                     break;
                 case 7561 when NoClippy.Config.PredictInstantCasts: // Swiftcast
-                    SetPredictedStatus(167, 0, 0);
+                    SetPredictedStatus(167);
                     break;
                 //case 7383 when NoClippy.Config.PredictInstantCasts && DalamudApi.ClientState.LocalPlayer?.Level >= 78: // Requiescat
-                //    SetPredictedStatus(1369, 0, 0);
+                //    SetPredictedStatus(1369);
                 //    break;
                 //case 23913 when NoClippy.Config.PredictInstantCasts: // Lost Chainspell
-                //    SetPredictedStatus(2560, 0, 0);
+                //    SetPredictedStatus(2560);
                 //    break;
                 // Firestarter?
             }
         }
 
-        public unsafe void Update()
+        public void Update()
         {
-            if (predictedStatus == 0) return;
+            if ((predictionTimer -= (float)DalamudApi.Framework.UpdateDelta.TotalSeconds) <= 0 && DalamudApi.ClientState.LocalPlayer is { } p)
+                UpdateStatusList(p.StatusList, -1, 0, 0, 0, 0);
+        }
 
-            // Status arrived, stop predicting
-            if (DalamudApi.ClientState.LocalPlayer is not { } p || p.StatusList.Any(s => s.StatusId == predictedStatus && s.RemainingTime > 0))
+        public void UpdateStatusList(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID)
+        {
+            if (slot > 0 && slot != currentSlot) return;
+
+            var overwritten = slot > 0 && slot == currentSlot;
+            if ((overwritten ? statusID == predictedStatus : statusList.Any(s => s.StatusId == predictedStatus && IsStatusValid(s.Address)))
+                || !TryGetFreeStatus(statusList, out var freeSlot, out var statusPtr))
             {
-                predictedStatus = 0;
-                timeRemaining = 0;
+                SetPredictedStatus();
                 return;
             }
 
-            var remove = timeRemaining > 0 && (timeRemaining -= (float)DalamudApi.Framework.UpdateDelta.TotalSeconds) <= 0;
-            var hasFreeStatus = TryGetFreeStatus(p.StatusList, out var statusPtr);
-            if (!remove)
+            if (predictionTimer > 0)
             {
-                if (hasFreeStatus)
-                    ApplyStatus(statusPtr, predictedStatus, predictedStatusStacks, predictedStatusParam);
+                ApplyStatus(statusPtr, predictedStatus, predictedStatusStacks, predictedStatusParam);
+                currentSlot = freeSlot;
             }
             else
             {
-                if (hasFreeStatus && *(ushort*)statusPtr == predictedStatus) // Probably not needed to check status ID, but just in case
+                if (!overwritten)
                     ApplyStatus(statusPtr, 0, 0, 0);
-
-                predictedStatus = 0;
-                timeRemaining = 0;
+                currentSlot = -1;
+                SetPredictedStatus();
             }
         }
 
@@ -121,16 +149,13 @@ namespace NoClippy.Modules
             ImGui.Columns(1);
         }
 
-        public override void Enable()
-        {
-            Game.OnUseActionLocation += UseActionLocation;
-            Game.OnUpdate += Update;
-        }
+        public override void Enable() => Game.OnUseActionLocation += UseActionLocation;
 
         public override void Disable()
         {
             Game.OnUseActionLocation -= UseActionLocation;
             Game.OnUpdate -= Update;
+            Game.OnUpdateStatusList -= UpdateStatusList;
         }
     }
 }
