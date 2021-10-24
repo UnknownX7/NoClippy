@@ -29,7 +29,11 @@ namespace NoClippy
 
                 Modules.Modules.Initialize();
             }
-            catch { PrintError("Failed to load!"); }
+            catch (Exception e)
+            {
+                PrintError("Failed to load!");
+                PluginLog.LogError(e.ToString());
+            }
         }
 
         [Command("/noclippy")]

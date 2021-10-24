@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.ClientState.Statuses;
 using ImGuiNET;
+using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
 
 namespace NoClippy
 {
@@ -18,124 +20,160 @@ namespace NoClippy.Modules
     {
         public override int DrawOrder => 15;
 
-        private ushort predictedStatus = 0;
-        private byte predictedStatusStacks = 0;
-        private byte predictedStatusParam = 0;
-        private float predictionTimer = 0;
-        private short currentSlot = -1;
-
-        private void SetPredictedStatus(ushort status = 0, byte stacks = 0, byte param = 0, float time = 0.75f)
+        private class PredictedStatusList
         {
-            if (status != 0)
+            private readonly List<PredictedStatus> statuses = new();
+
+            public void Add(ushort statusID = 0, byte stacks = 0, byte param = 0, bool replace = false, float timer = 0.75f)
             {
-                var p = DalamudApi.ClientState.LocalPlayer;
-                if (currentSlot >= 0 && p != null)
+                var statusList = DalamudApi.ClientState.LocalPlayer!.StatusList;
+                if (statusList.Any(status => status.StatusId == statusID)) return;
+
+                var prev = statuses.FindIndex(s => s.status.StatusID == statusID);
+                if (prev >= 0)
                 {
-                    predictionTimer = -1;
-                    UpdateStatusList(p.StatusList, -1, 0, 0, 0, 0);
+                    statuses[prev].TryRemove(statusList);
+                    statuses.RemoveAt(prev);
                 }
 
-                predictedStatus = status;
-                predictedStatusStacks = stacks;
-                predictedStatusParam = param;
-                predictionTimer = time;
+                statuses.Add(new PredictedStatus
+                {
+                    status = new Status
+                    {
+                        StatusID = statusID,
+                        StackCount = stacks,
+                        Param = param
+                    },
+                    timer = timer,
+                    replace = replace
+                });
+            }
+
+            public void Update(float dt)
+            {
+                var statusList = DalamudApi.ClientState.LocalPlayer?.StatusList;
+                var exists = statusList != null;
+
+                for (int i = statuses.Count - 1; i >= 0; i--)
+                {
+                    var status = statuses[i];
+                    if ((status.timer -= dt) > 0) continue;
+
+                    if (exists)
+                        status.TryRemove(statusList);
+
+                    statuses.RemoveAt(i);
+                }
+            }
+
+            public unsafe void Apply(StatusList statusList)
+            {
+                if (statuses.Count == 0) return;
+                var currentIndex = 0;
+                for (short i = 0; i < statusList.Length; i++)
+                {
+                    var statusPtr = (Status*)statusList.GetStatusAddress(i);
+                    if (IsStatusValid(statusPtr)) continue;
+                    statuses[currentIndex].Apply(statusPtr, i);
+                    ++currentIndex;
+                    if (statuses.Count == currentIndex) return;
+                }
+
+                // These statuses failed to find a free slot to apply
+                for (int i = currentIndex; i < statuses.Count; i++)
+                    statuses[i].currentSlot = -1;
+            }
+
+            public void CheckNewStatus(StatusList statusList, short slot, ushort statusID)
+            {
+                var reapply = false;
+                for (int i = 0; i < statuses.Count; i++)
+                {
+                    var status = statuses[i];
+                    var replaced = slot == status.currentSlot;
+                    reapply = reapply || replaced;
+                    if (statusID != status.status.StatusID) continue;
+
+                    if (!replaced)
+                        status.TryRemove(statusList);
+
+                    statuses.RemoveAt(i);
+                    break;
+                }
+
+                if (reapply)
+                    Apply(DalamudApi.ClientState.LocalPlayer!.StatusList);
+            }
+        }
+
+        private unsafe class PredictedStatus
+        {
+            public Status status = new();
+            public float timer = 0;
+            public bool replace = false;
+            public short currentSlot = -1;
+
+            public void Apply(Status* statusPtr, short slot)
+            {
+                statusPtr->StatusID = status.StatusID;
+                statusPtr->StackCount = status.StackCount;
+                statusPtr->Param = status.Param;
+                currentSlot = slot;
+            }
+
+            public void TryRemove(StatusList statusList)
+            {
+                if (currentSlot < 0) return;
+                var statusPtr = (Status*)statusList.GetStatusAddress(currentSlot);
+                if (statusPtr->StatusID != status.StatusID || statusPtr->Param != status.Param || statusPtr->StackCount != status.StackCount) return;
+                statusPtr->StatusID = 0;
+                statusPtr->StackCount = 0;
+                statusPtr->Param = 0;
                 currentSlot = -1;
-
-                Game.OnUpdate += Update;
-                Game.OnUpdateStatusList += UpdateStatusList;
-
-                if (p != null)
-                    UpdateStatusList(p.StatusList, -1, 0, 0, 0, 0);
-            }
-            else
-            {
-                Game.OnUpdate -= Update;
-                Game.OnUpdateStatusList -= UpdateStatusList;
             }
         }
 
-        private static bool TryGetFreeStatus(StatusList statuses, out short slot, out IntPtr statusPtr)
-        {
-            for (short i = 0; i < statuses.Length; i++)
-            {
-                var status = statuses[i];
-                if (status != null && IsStatusValid(status.Address)) continue;
-                statusPtr = statuses.GetStatusAddress(i);
-                slot = i;
-                return true;
-            }
+        private readonly PredictedStatusList predictedStatusList = new();
 
-            statusPtr = IntPtr.Zero;
-            slot = -1;
-            return false;
+        private class StatusInfo
+        {
+            public ushort id = 0;
+            public byte stacks = 0;
+            public byte param = 0;
+            public float timer = 0.75f;
+            public bool replace = false;
         }
 
-        private static unsafe void ApplyStatus(IntPtr statusPtr, ushort status, byte stacks, byte param)
+        private readonly Dictionary<uint, List<StatusInfo>> predictedStatuses = new()
         {
-            *(ushort*)statusPtr = status;
-            *(byte*)(statusPtr + 0x2) = stacks;
-            *(byte*)(statusPtr + 0x3) = param;
-        }
+            [7421] = new() { new() { id = 1211, stacks = 3 } }, // Triplecast
+            [7561] = new() { new() { id = 167 } }, // Swiftcast
+            //[7383] = new() { new() { id = 1369 } }, // Requiescat
+            //[23913] = new() { new() { id = 2560 } }, // Lost Chainspell
+            // Firestarter?
+        };
 
-        private static unsafe bool IsStatusValid(IntPtr statusPtr)
-        {
-            var time = *(float*)(statusPtr + 0x4);
-            var objectID = *(uint*)(statusPtr + 0x8);
-            return time > 0 || objectID is not (0 or 0xE0000000); // Length - 7 seems to be the last one with objectID 0xE0000000?
-        }
+        // Length - 7 seems to be the last one with sourceID 0xE0000000?
+        private static unsafe bool IsStatusValid(Status* statusPtr) => statusPtr->StatusID != 0 && (statusPtr->RemainingTime > 0 || statusPtr->SourceID is not (0 or 0xE0000000));
 
         private void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
         {
-            if (actionType != 1) return;
+            if (actionType != 1 || !predictedStatuses.TryGetValue(actionID, out var statuses)) return;
 
-            switch (actionID)
-            {
-                case 7421 when NoClippy.Config.PredictInstantCasts: // Triplecast
-                    SetPredictedStatus(1211, 3);
-                    break;
-                case 7561 when NoClippy.Config.PredictInstantCasts: // Swiftcast
-                    SetPredictedStatus(167);
-                    break;
-                //case 7383 when NoClippy.Config.PredictInstantCasts && DalamudApi.ClientState.LocalPlayer?.Level >= 78: // Requiescat
-                //    SetPredictedStatus(1369);
-                //    break;
-                //case 23913 when NoClippy.Config.PredictInstantCasts: // Lost Chainspell
-                //    SetPredictedStatus(2560);
-                //    break;
-                // Firestarter?
-            }
+            foreach (var status in statuses)
+                predictedStatusList.Add(status.id, status.stacks, status.param, status.replace, status.timer);
+
+            predictedStatusList.Apply(DalamudApi.ClientState.LocalPlayer!.StatusList);
         }
 
-        public void Update()
-        {
-            if ((predictionTimer -= (float)DalamudApi.Framework.UpdateDelta.TotalSeconds) <= 0 && DalamudApi.ClientState.LocalPlayer is { } p)
-                UpdateStatusList(p.StatusList, -1, 0, 0, 0, 0);
-        }
+        public void Update() => predictedStatusList.Update((float)DalamudApi.Framework.UpdateDelta.TotalSeconds);
 
         public void UpdateStatusList(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID)
         {
-            if (slot > 0 && slot != currentSlot) return;
-
-            var overwritten = slot > 0 && slot == currentSlot;
-            if ((overwritten ? statusID == predictedStatus : statusList.Any(s => s.StatusId == predictedStatus && IsStatusValid(s.Address)))
-                || !TryGetFreeStatus(statusList, out var freeSlot, out var statusPtr))
-            {
-                SetPredictedStatus();
-                return;
-            }
-
-            if (predictionTimer > 0)
-            {
-                ApplyStatus(statusPtr, predictedStatus, predictedStatusStacks, predictedStatusParam);
-                currentSlot = freeSlot;
-            }
+            if (slot < 0)
+                predictedStatusList.Apply(statusList);
             else
-            {
-                if (!overwritten)
-                    ApplyStatus(statusPtr, 0, 0, 0);
-                currentSlot = -1;
-                SetPredictedStatus();
-            }
+                predictedStatusList.CheckNewStatus(statusList, slot, statusID);
         }
 
         public override void DrawConfig()
@@ -149,7 +187,12 @@ namespace NoClippy.Modules
             ImGui.Columns(1);
         }
 
-        public override void Enable() => Game.OnUseActionLocation += UseActionLocation;
+        public override void Enable()
+        {
+            Game.OnUseActionLocation += UseActionLocation;
+            Game.OnUpdate += Update;
+            Game.OnUpdateStatusList += UpdateStatusList;
+        }
 
         public override void Disable()
         {

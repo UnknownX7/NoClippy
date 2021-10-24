@@ -3,6 +3,7 @@ using Dalamud;
 using Dalamud.Game.ClientState.Statuses;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
+using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
 
 namespace NoClippy
 {
@@ -111,25 +112,24 @@ namespace NoClippy
 
         public delegate void UpdateStatusListEventDelegate(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID);
         public static event UpdateStatusListEventDelegate OnUpdateStatusList;
-        //public static event UpdateStatusDelegate OnUpdateStatus;
         private delegate void UpdateStatusDelegate(IntPtr status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
+        //public static event UpdateStatusDelegate OnUpdateStatus;
         private static Hook<UpdateStatusDelegate> UpdateStatusHook;
-        private static void UpdateStatusDetour(IntPtr status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
+        private static void UpdateStatusDetour(IntPtr statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
         {
-            UpdateStatusHook.Original(status, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
-            /*if (DalamudApi.ClientState.LocalPlayer is not { } p
-                || status.ToInt64() < p.StatusList.Address.ToInt64()
-                || status.ToInt64() > p.StatusList.GetStatusAddress(p.StatusList.Length - 1).ToInt64())
-                return;
-            OnUpdateStatus?.Invoke(status, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);*/
-            if (DalamudApi.ClientState.LocalPlayer is not { } p
-                || slot != p.StatusList.Length - 1
-                || status.ToInt64() < p.StatusList.Address.ToInt64()
-                || status.ToInt64() > p.StatusList.GetStatusAddress(p.StatusList.Length - 1).ToInt64())
-                return;
-            if (individualUpdate)
+            var statusPtr = (Status*)(statusList + 0x8 + 0xC * slot);
+            var oldStatusID = statusPtr->StatusID;
+            var oldSourceID = statusPtr->SourceID;
+            UpdateStatusHook.Original(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
+
+            if (DalamudApi.ClientState.LocalPlayer is not { } p || statusList.ToInt64() != p.StatusList.Address.ToInt64()) return;
+
+            //OnUpdateStatus?.Invoke(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
+
+            if (statusID != 0 && (oldStatusID != statusID || oldSourceID != sourceID))
                 OnUpdateStatusList?.Invoke(p.StatusList, slot, statusID, remainingTime, stackParam, sourceID);
-            else
+
+            if (!individualUpdate && slot == p.StatusList.Length - 1)
                 OnUpdateStatusList?.Invoke(p.StatusList, -1, 0, 0, 0, 0);
         }
 
