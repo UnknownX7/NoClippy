@@ -13,6 +13,7 @@ namespace NoClippy
     {
         public bool PredictStatusApplications = false;
         public bool PredictMudras = false;
+        public bool PredictDualcast = false;
     }
 }
 
@@ -22,8 +23,8 @@ namespace NoClippy.Modules
     {
         public override bool IsEnabled
         {
-            get => NoClippy.Config.PredictStatusApplications || NoClippy.Config.PredictMudras;
-            set => NoClippy.Config.PredictStatusApplications = NoClippy.Config.PredictMudras = value;
+            get => NoClippy.Config.PredictStatusApplications || NoClippy.Config.PredictMudras || NoClippy.Config.PredictDualcast;
+            set => NoClippy.Config.PredictStatusApplications = NoClippy.Config.PredictMudras = NoClippy.Config.PredictDualcast = value;
         }
 
         public override int DrawOrder => 15;
@@ -32,7 +33,7 @@ namespace NoClippy.Modules
         {
             private readonly List<PredictedStatus> statuses = new();
 
-            public void Add(ushort statusID = 0, byte stacks = 0, byte param = 0, bool replace = false, float timer = 0.75f)
+            public PredictedStatus Add(ushort statusID = 0, byte stacks = 0, byte param = 0, bool replace = false, float timer = 0.75f)
             {
                 var statusList = DalamudApi.ClientState.LocalPlayer!.StatusList;
 
@@ -40,7 +41,7 @@ namespace NoClippy.Modules
 
                 if (!replace)
                 {
-                    if (statusList.Any(status => status.StatusId == statusID)) return;
+                    if (statusList.Any(status => status.StatusId == statusID)) return null;
                     prev = statuses.FindIndex(s => !s.replace && s.status.StatusID == statusID);
                 }
                 else
@@ -54,7 +55,7 @@ namespace NoClippy.Modules
                     statuses.RemoveAt(prev);
                 }
 
-                statuses.Add(new PredictedStatus
+                var predicted = new PredictedStatus
                 {
                     status = new Status
                     {
@@ -64,7 +65,10 @@ namespace NoClippy.Modules
                     },
                     timer = timer,
                     replace = replace
-                });
+                };
+
+                statuses.Add(predicted);
+                return predicted;
             }
 
             public void Update(float dt)
@@ -142,6 +146,16 @@ namespace NoClippy.Modules
                 if (reapply)
                     Apply(DalamudApi.ClientState.LocalPlayer!.StatusList);
             }
+
+            public bool Remove(PredictedStatus status)
+            {
+                var removed = statuses.Remove(status);
+                if (removed && DalamudApi.ClientState.LocalPlayer?.StatusList is { } statusList)
+                    status.TryRemove(statusList);
+                return removed;
+            }
+
+            public bool Contains(PredictedStatus status) => statuses.Contains(status);
         }
 
         private unsafe class PredictedStatus
@@ -183,6 +197,8 @@ namespace NoClippy.Modules
         }
 
         private readonly PredictedStatusList predictedStatusList = new();
+        private bool predictDualcast = false;
+        private PredictedStatus dualCast = null;
 
         private class StatusInfo
         {
@@ -300,9 +316,46 @@ namespace NoClippy.Modules
             SwapMudras();
         }
 
-        public void Update() => predictedStatusList.Update((float)DalamudApi.Framework.UpdateDelta.TotalSeconds);
+        private void UpdateDualcast()
+        {
+            var statusList = DalamudApi.ClientState.LocalPlayer?.StatusList;
+            if (statusList == null)
+            {
+                predictDualcast = false;
+                return;
+            }
 
-        public void UpdateStatusList(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID)
+            if (Game.IsCasting) return;
+            dualCast = predictedStatusList.Add(1249);
+            if (dualCast != null)
+                predictedStatusList.Apply(statusList);
+            predictDualcast = false;
+        }
+
+        private void CastBegin(ulong objectID, IntPtr packetData)
+        {
+            if (!NoClippy.Config.PredictDualcast || DalamudApi.ClientState.LocalPlayer?.ClassJob.Id != 35) return;
+            dualCast = null;
+            predictDualcast = true;
+        }
+
+        private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID)
+        {
+            if (!predictDualcast) return;
+            predictedStatusList.Remove(dualCast);
+            dualCast = null;
+            predictDualcast = false;
+        }
+
+        private void Update()
+        {
+            predictedStatusList.Update((float)DalamudApi.Framework.UpdateDelta.TotalSeconds);
+
+            if (predictDualcast)
+                UpdateDualcast();
+        }
+
+        private void UpdateStatusList(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID)
         {
             if (slot < 0)
                 predictedStatusList.Apply(statusList);
@@ -310,7 +363,7 @@ namespace NoClippy.Modules
                 predictedStatusList.CheckNewStatus(statusList, slot, statusID);
         }
 
-        private void TextCenter(Vector4 color, string text)
+        private static void TextCenter(Vector4 color, string text)
         {
             ImGui.Spacing();
             var size = ImGui.CalcTextSize(text).X;
@@ -324,11 +377,12 @@ namespace NoClippy.Modules
             ImGui.BeginGroup();
             TextCenter(red, "!!!!!USE AT OWN RISK!!!!!");
             TextCenter(red, "Experimental prediction settings.");
+            ImGui.Dummy(new Vector2(1000, 8));
             ImGui.EndGroup();
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("This is a very early attempt at fixing a major problem with status effects and certain skills." +
                     "\nThe server should decline invalid attempts, but these settings could cause more invalid packets than usual." +
-                    "\nThis can happen normally, such as when stunned, so while it may seem detectable, it is very unlikely they can differentiate.");
+                    "\nIt is currently not known if these settings can produce unexpected results on FFLogs.");
 
             ImGui.Columns(2, null, false);
 
@@ -343,6 +397,13 @@ namespace NoClippy.Modules
                 NoClippy.Config.Save();
             PluginUI.SetItemTooltip("Removes the effects of lag on using Mudras and Ninjutsu.");
 
+            ImGui.NextColumn();
+
+            if (ImGui.Checkbox("Predict Dualcast", ref NoClippy.Config.PredictDualcast))
+                NoClippy.Config.Save();
+            PluginUI.SetItemTooltip("Mostly removes the effects of lag on dualcast." +
+                "\nWarning: Can easily desync with extremely high lag and slidecasting too early.");
+
             ImGui.Columns(1);
         }
 
@@ -351,6 +412,8 @@ namespace NoClippy.Modules
             Game.OnUseActionLocation += UseActionLocation;
             Game.OnUpdate += Update;
             Game.OnUpdateStatusList += UpdateStatusList;
+            Game.OnCastBegin += CastBegin;
+            Game.OnCastInterrupt += CastInterrupt;
         }
 
         public override void Disable()
@@ -358,6 +421,8 @@ namespace NoClippy.Modules
             Game.OnUseActionLocation -= UseActionLocation;
             Game.OnUpdate -= Update;
             Game.OnUpdateStatusList -= UpdateStatusList;
+            Game.OnCastBegin -= CastBegin;
+            Game.OnCastInterrupt -= CastInterrupt;
         }
     }
 }
