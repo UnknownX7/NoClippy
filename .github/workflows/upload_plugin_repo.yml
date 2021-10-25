@@ -10,7 +10,7 @@ env:
   INTERNAL_NAME: NoClippy
   RELEASE_DIR: ./Publish
   PERSONAL_PLUGIN_REPO: UnknownX7/DalamudPluginRepo
-  BRANCH: api4
+  BRANCH: master
 
 jobs:
   build:
