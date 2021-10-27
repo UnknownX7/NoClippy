@@ -198,6 +198,7 @@ namespace NoClippy.Modules
 
         private readonly PredictedStatusList predictedStatusList = new();
         private bool predictDualcast = false;
+        private bool inPVP = false;
         private PredictedStatus dualCast = null;
 
         private class StatusInfo
@@ -326,17 +327,22 @@ namespace NoClippy.Modules
             }
 
             if (Game.IsCasting) return;
-            dualCast = predictedStatusList.Add(1249);
+            dualCast = predictedStatusList.Add((ushort)(!inPVP ? 1249 : 1393));
             if (dualCast != null)
                 predictedStatusList.Apply(statusList);
             predictDualcast = false;
         }
 
-        private void CastBegin(ulong objectID, IntPtr packetData)
+        private unsafe void CastBegin(ulong objectID, IntPtr packetData)
         {
-            if (!NoClippy.Config.PredictDualcast || DalamudApi.ClientState.LocalPlayer?.ClassJob.Id != 35) return;
+            if (!NoClippy.Config.PredictDualcast || DalamudApi.ClientState.LocalPlayer?.ClassJob.Id != 35 || *(byte*)(packetData + 2) != 1) return;
+
+            var actionID = *(ushort*)packetData;
+            if (actionID < 9) return; // Special actions
+
             dualCast = null;
             predictDualcast = true;
+            inPVP = actionID is 8883 or 8885 or 10025 or 17727;
         }
 
         private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID)
@@ -379,10 +385,9 @@ namespace NoClippy.Modules
             TextCenter(red, "Experimental prediction settings.");
             ImGui.Dummy(new Vector2(1000, 8));
             ImGui.EndGroup();
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("This is a very early attempt at fixing a major problem with status effects and certain skills." +
-                    "\nThe server should decline invalid attempts, but these settings could cause more invalid packets than usual." +
-                    "\nIt is currently not known if these settings can produce unexpected results on FFLogs.");
+            PluginUI.SetItemTooltip("This is a very early attempt at fixing a major problem with status effects and certain skills." +
+                "\nThe server should decline invalid attempts, but these settings could cause more invalid packets than usual." +
+                "\nIt is currently not known if these settings can produce unexpected results on FFLogs.");
 
             ImGui.Columns(2, null, false);
 
