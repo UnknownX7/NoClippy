@@ -56,6 +56,13 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
+            var _ = IsEnabled;
+            if (ImGui.Checkbox("##QueueThresholdIsEnabled", ref _))
+                IsEnabled = _;
+
+            ImGui.SameLine();
+
+            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 1.5f);
             if (ImGui.SliderFloat("Queue Threshold", ref NoClippy.Config.QueueThreshold, 0, 2.5f, "%.1f"))
             {
                 Threshold = NoClippy.Config.QueueThreshold;
@@ -63,6 +70,9 @@ namespace NoClippy.Modules
             }
             PluginUI.SetItemTooltip("Max time left on the GCD before you can queue another GCD." +
                 "\nDefault is 0.5, set it to 2.5 to always allow queuing.");
+
+            if (NoClippy.Config.QueueThreshold == 0)
+                ImGui.TextUnformatted(":worry:");
         }
 
         public override void Enable()
