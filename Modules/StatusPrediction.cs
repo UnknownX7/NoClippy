@@ -33,7 +33,7 @@ namespace NoClippy.Modules
         {
             private readonly List<PredictedStatus> statuses = new();
 
-            public PredictedStatus Add(ushort statusID = 0, byte stacks = 0, byte param = 0, bool replace = false, float timer = 0.75f)
+            public PredictedStatus Add(ushort statusID = 0, byte stacks = 0, byte param = 0, bool replace = false, float timer = 0.75f, Action endAction = null)
             {
                 var statusList = DalamudApi.ClientState.LocalPlayer!.StatusList;
 
@@ -52,6 +52,7 @@ namespace NoClippy.Modules
                 if (prev >= 0)
                 {
                     statuses[prev].TryRemove(statusList);
+                    endAction?.Invoke();
                     statuses.RemoveAt(prev);
                 }
 
@@ -64,7 +65,8 @@ namespace NoClippy.Modules
                         Param = param
                     },
                     timer = timer,
-                    replace = replace
+                    replace = replace,
+                    endAction = endAction
                 };
 
                 statuses.Add(predicted);
@@ -84,6 +86,7 @@ namespace NoClippy.Modules
                     if (exists)
                         status.TryRemove(statusList);
 
+                    status.endAction?.Invoke();
                     statuses.RemoveAt(i);
                 }
             }
@@ -139,6 +142,7 @@ namespace NoClippy.Modules
                     if (!replaced)
                         status.TryRemove(statusList);
 
+                    status.endAction?.Invoke();
                     statuses.RemoveAt(i);
                     break;
                 }
@@ -150,8 +154,13 @@ namespace NoClippy.Modules
             public bool Remove(PredictedStatus status)
             {
                 var removed = statuses.Remove(status);
+
                 if (removed && DalamudApi.ClientState.LocalPlayer?.StatusList is { } statusList)
+                {
                     status.TryRemove(statusList);
+                    status.endAction?.Invoke();
+                }
+
                 return removed;
             }
 
@@ -164,6 +173,7 @@ namespace NoClippy.Modules
             public float timer = 0;
             public bool replace = false;
             public short currentSlot = -1;
+            public Action endAction = null;
 
             public void Apply(Status* statusPtr, short slot)
             {
@@ -208,14 +218,15 @@ namespace NoClippy.Modules
             public byte param = 0;
             public float timer = 0.75f;
             public bool replace = false;
-            public Action action = null;
+            public Action beginAction = null;
+            public Action endAction = null;
         }
 
-        private static unsafe void SwapMudras()
+        private static unsafe void SwapMudras(byte b)
         {
             var jobGaugeManager = (IntPtr)JobGaugeManager.Instance();
             if (jobGaugeManager == IntPtr.Zero) return;
-            *(byte*)(jobGaugeManager + 0x18) = 1;
+            *(byte*)(jobGaugeManager + 0x18) = b;
         }
 
         private const ushort MudraStatusID = 496;
@@ -229,7 +240,7 @@ namespace NoClippy.Modules
             //[2259] = new() { new() { id = MudraStatusID, stacks = 1, timer = 1f } }, // Ten
             //[2261] = new() { new() { id = MudraStatusID, stacks = 2, timer = 1f } }, // Chi
             //[2263] = new() { new() { id = MudraStatusID, stacks = 3, timer = 1f } }, // Jin
-            [2264] = new() { new() { id = 497, timer = 0.6f, action = SwapMudras } }, // Kassatsu
+            [2264] = new() { new() { id = 497, timer = 0.6f, beginAction = () => SwapMudras(1), endAction = () => SwapMudras(0) } }, // Kassatsu
         };
 
         // Length - 7 seems to be the last one with sourceID 0xE0000000?
@@ -252,8 +263,8 @@ namespace NoClippy.Modules
 
             foreach (var status in statuses)
             {
-                predictedStatusList.Add(status.id, status.stacks, status.param, status.replace, status.timer);
-                status.action?.Invoke();
+                if (predictedStatusList.Add(status.id, status.stacks, status.param, status.replace, status.timer, status.endAction) != null)
+                    status.beginAction?.Invoke();
             }
 
             predictedStatusList.Apply(DalamudApi.ClientState.LocalPlayer!.StatusList);
@@ -314,7 +325,6 @@ namespace NoClippy.Modules
 
             predictedStatusList.Add(MudraStatusID, (byte)mudraStacks, 0, true, 1f);
             predictedStatusList.Apply(statusList);
-            SwapMudras();
         }
 
         private void UpdateDualcast()
