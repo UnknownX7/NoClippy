@@ -50,7 +50,7 @@ namespace NoClippy.Modules
                 "comiss xmm1, [rax]"
             };
 
-            queueThresholdHook = new(DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B"), asm, "QueueThresholdHook", AsmHookBehaviour.DoNotExecuteOriginal);
+            queueThresholdHook = new(DalamudApi.SigScanner.ScanModule("0F 2F 0D ?? ?? ?? ?? 76 1B 32 C0"), asm, "QueueThresholdHook", AsmHookBehaviour.DoNotExecuteOriginal);
             queueThresholdHook.Enable();
         }
 
