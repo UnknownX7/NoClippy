@@ -3,6 +3,7 @@ using Dalamud;
 using Dalamud.Game.ClientState.Statuses;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
 
 namespace NoClippy
@@ -139,7 +140,7 @@ namespace NoClippy
 
         public static void Initialize()
         {
-            var actionManager = DalamudApi.SigScanner.GetStaticAddressFromSig("41 0F B7 57 04 48 8D 0D"); // g_ActionManager
+            var actionManager = (IntPtr)ActionManager.Instance(); //DalamudApi.SigScanner.GetStaticAddressFromSig("41 0F B7 57 04 48 8D 0D"); // g_ActionManager
             animationLockPtr = actionManager + 0x8;
             isCastingPtr = actionManager + 0x28;
             comboTimerPtr = actionManager + 0x60;
