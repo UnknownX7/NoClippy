@@ -327,7 +327,7 @@ namespace NoClippy.Modules
             predictedStatusList.Apply(statusList);
         }
 
-        private void UpdateDualcast()
+        private unsafe void UpdateDualcast()
         {
             var statusList = DalamudApi.ClientState.LocalPlayer?.StatusList;
             if (statusList == null)
@@ -336,7 +336,7 @@ namespace NoClippy.Modules
                 return;
             }
 
-            if (Game.IsCasting) return;
+            if (Game.actionManager->isCasting) return;
             dualCast = predictedStatusList.Add((ushort)(!inPVP ? 1249 : 1393));
             if (dualCast != null)
                 predictedStatusList.Apply(statusList);

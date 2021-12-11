@@ -31,9 +31,9 @@ namespace NoClippy.Modules
                         module.Enable();
                         PluginLog.LogInformation($"Loaded module: {module.GetType()}");
                     }
-                    catch
+                    catch (Exception e)
                     {
-                        PluginLog.LogError($"Failed loading module: {module.GetType()}");
+                        PluginLog.LogError($"Failed loading module: {module.GetType()}\n{e}");
                         module.IsEnabled = false;
                     }
                 }

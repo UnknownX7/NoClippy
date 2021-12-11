@@ -87,7 +87,7 @@ namespace NoClippy.Modules
                     PrintError($"Unexpected lock of {F2MS(newLock)} ms, dry run has been enabled");
                 }
 
-                if (!isUsingAlexander && !Game.IsCasting)
+                if (!isUsingAlexander && !Game.actionManager->isCasting)
                     UpdateDatabase(*(uint*)(effectHeader + 0x8), *(float*)(effectHeader + 0x10));
 
                 var responseTime = Game.DefaultClientAnimationLock - oldLock;
@@ -102,7 +102,7 @@ namespace NoClippy.Modules
                 var delayOverride = Math.Min(Math.Max(newLock - responseTime + addedDelay, 0), newLock);
 
                 if (!Config.EnableDryRun)
-                    Game.AnimationLock = delayOverride;
+                    Game.actionManager->animationLock = delayOverride;
 
                 if (!Config.EnableLogging) return;
 

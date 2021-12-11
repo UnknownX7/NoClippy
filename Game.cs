@@ -1,5 +1,4 @@
 using System;
-using Dalamud;
 using Dalamud.Game.ClientState.Statuses;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
@@ -10,26 +9,7 @@ namespace NoClippy
 {
     public static unsafe class Game
     {
-        private static IntPtr animationLockPtr;
-        public static ref float AnimationLock => ref *(float*)animationLockPtr;
-
-        private static IntPtr isCastingPtr;
-        public static bool IsCasting => *(bool*)isCastingPtr;
-
-        private static IntPtr comboTimerPtr;
-        public static float ComboTimer => *(float*)comboTimerPtr;
-
-        private static IntPtr isQueuedPtr;
-        public static bool IsQueued => *(bool*)isQueuedPtr;
-
-        private static IntPtr actionCountPtr;
-        public static ushort ActionCount => *(ushort*)actionCountPtr;
-
-        private static IntPtr finishedActionCountPtr;
-        public static ushort FinishedActionCount => *(ushort*)finishedActionCountPtr;
-
-        private static IntPtr isGCDRecastActivePtr;
-        public static bool IsGCDRecastActive => *(bool*)isGCDRecastActivePtr;
+        public static Structures.ActionManager* actionManager;
 
         private static IntPtr defaultClientAnimationLockPtr;
         public static float DefaultClientAnimationLock
@@ -106,9 +86,9 @@ namespace NoClippy
         private static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
         private static void ReceiveActionEffectDetour(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail)
         {
-            var oldLock = AnimationLock;
+            var oldLock = actionManager->animationLock;
             ReceiveActionEffectHook.Original(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail);
-            OnReceiveActionEffect?.Invoke(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail, oldLock, AnimationLock);
+            OnReceiveActionEffect?.Invoke(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail, oldLock, actionManager->animationLock);
         }
 
         public delegate void UpdateStatusListEventDelegate(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID);
@@ -140,15 +120,7 @@ namespace NoClippy
 
         public static void Initialize()
         {
-            var actionManager = (IntPtr)ActionManager.Instance(); //DalamudApi.SigScanner.GetStaticAddressFromSig("41 0F B7 57 04 48 8D 0D"); // g_ActionManager
-            animationLockPtr = actionManager + 0x8;
-            isCastingPtr = actionManager + 0x28;
-            comboTimerPtr = actionManager + 0x60;
-            isQueuedPtr = actionManager + 0x68;
-            actionCountPtr = actionManager + 0x110;
-            finishedActionCountPtr = actionManager + 0x112;
-            isGCDRecastActivePtr = actionManager + 0x610;
-            // 0x614 is previous gcd skill, 0x618 is current gcd recast time (counts up), 0x61C is gcd recast (counted up to)
+            actionManager = (Structures.ActionManager*)ActionManager.Instance();
 
             UseActionHook = new Hook<UseActionDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 89 9F 14 79 02 00"), UseActionDetour);
             UseActionLocationHook = new Hook<UseActionLocationDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 81 FB FB 1C 00 00"), UseActionLocationDetour);

@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using Dalamud.Interface;
 using ImGuiNET;
-using static NoClippy.NoClippy;
 
 namespace NoClippy
 {

@@ -45,25 +45,26 @@ namespace NoClippy.Modules
             begunEncounter = DateTime.MinValue;
         }
 
-        private void DetectClipping()
+        private unsafe void DetectClipping()
         {
-            if (lastDetectedClip == Game.ActionCount || Game.IsGCDRecastActive || Game.AnimationLock <= 0) return;
+            var animationLock = Game.actionManager->animationLock;
+            if (lastDetectedClip == Game.actionManager->currentSequence || Game.actionManager->isGCDRecastActive || animationLock <= 0) return;
 
-            if (Game.AnimationLock != 0.1f) // TODO need better way of detecting cast tax, IsCasting is not reliable here, additionally, this will detect LB
+            if (animationLock != 0.1f) // TODO need better way of detecting cast tax, IsCasting is not reliable here, additionally, this will detect LB
             {
-                encounterTotalClip += Game.AnimationLock;
+                encounterTotalClip += animationLock;
                 if (NoClippy.Config.EnableEncounterStatsLogging)
-                    NoClippy.PrintLog($"GCD Clip: {NoClippy.F2MS(Game.AnimationLock)} ms");
+                    NoClippy.PrintLog($"GCD Clip: {NoClippy.F2MS(animationLock)} ms");
             }
 
-            lastDetectedClip = Game.ActionCount;
+            lastDetectedClip = Game.actionManager->currentSequence;
         }
 
-        private void DetectWastedGCD()
+        private unsafe void DetectWastedGCD()
         {
-            if (!Game.IsGCDRecastActive && !Game.IsQueued)
+            if (!Game.actionManager->isGCDRecastActive && !Game.actionManager->isQueued)
             {
-                if (Game.AnimationLock > 0) return;
+                if (Game.actionManager->animationLock > 0) return;
                 currentWastedGCD += ImGui.GetIO().DeltaTime;
             }
             else if (currentWastedGCD > 0)

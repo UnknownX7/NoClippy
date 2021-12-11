@@ -58,7 +58,10 @@ namespace NoClippy.Modules
         {
             var _ = IsEnabled;
             if (ImGui.Checkbox("##QueueThresholdIsEnabled", ref _))
+            {
                 IsEnabled = _;
+                NoClippy.Config.Save();
+            }
 
             ImGui.SameLine();
 
