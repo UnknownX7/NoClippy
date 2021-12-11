@@ -9,6 +9,7 @@ namespace NoClippy
     public partial class Configuration
     {
         public float QueueThreshold = 0.5f;
+        public bool EnableDynamicThreshold = false;
     }
 }
 
@@ -18,14 +19,20 @@ namespace NoClippy.Modules
     {
         public override bool IsEnabled
         {
-            get => NoClippy.Config.QueueThreshold != 0.5f;
-            set => NoClippy.Config.QueueThreshold = value ? 1 : 0.5f;
+            get => NoClippy.Config.EnableDynamicThreshold || NoClippy.Config.QueueThreshold != 0.5f;
+            set
+            {
+                NoClippy.Config.QueueThreshold = value ? 1 : 0.5f;
+                NoClippy.Config.EnableDynamicThreshold = false;
+            }
         }
 
         public override int DrawOrder => 10;
 
         private IntPtr queueThresholdPtr = IntPtr.Zero;
         private AsmHook queueThresholdHook;
+
+        private ushort lastSequence = 0;
 
         private unsafe float Threshold
         {
@@ -35,6 +42,19 @@ namespace NoClippy.Modules
                 if (queueThresholdPtr == IntPtr.Zero) return;
                 *(float*)queueThresholdPtr = value < 2.5f ? value : 10;
             }
+        }
+
+        private delegate byte CanQueueDelegate(IntPtr actionManager, uint actionType, uint actionID);
+        private Hook<CanQueueDelegate> CanQueueHook;
+        private unsafe byte CanQueueDetour(IntPtr actionManager, uint actionType, uint actionID)
+        {
+            if (NoClippy.Config.EnableDynamicThreshold && Game.actionManager->currentSequence != lastSequence)
+            {
+                lastSequence = Game.actionManager->currentSequence;
+                Threshold = Game.actionManager->isCasting ? Math.Max(Game.actionManager->gcdRecastTime - Game.actionManager->castTime + 0.5f, 0.5f) : NoClippy.Config.QueueThreshold;
+            }
+
+            return CanQueueHook.Original(actionManager, actionType, actionID);
         }
 
         private void SetupQueueThreshold()
@@ -56,10 +76,10 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
-            var _ = IsEnabled;
+            var _ = NoClippy.Config.QueueThreshold != 0.5f;
             if (ImGui.Checkbox("##QueueThresholdIsEnabled", ref _))
             {
-                IsEnabled = _;
+                NoClippy.Config.QueueThreshold = _ ? 1 : 0.5f;
                 NoClippy.Config.Save();
             }
 
@@ -76,6 +96,14 @@ namespace NoClippy.Modules
 
             if (NoClippy.Config.QueueThreshold == 0)
                 ImGui.TextUnformatted(":worry:");
+
+            if (ImGui.Checkbox("Dynamic Cast Threshold", ref NoClippy.Config.EnableDynamicThreshold))
+            {
+                if (!NoClippy.Config.EnableDynamicThreshold)
+                    Threshold = NoClippy.Config.QueueThreshold;
+                NoClippy.Config.Save();
+            }
+            PluginUI.SetItemTooltip("Allows queuing during the slidecast window.");
         }
 
         public override void Enable()
@@ -84,6 +112,8 @@ namespace NoClippy.Modules
                 SetupQueueThreshold();
 
             Threshold = NoClippy.Config.QueueThreshold;
+            CanQueueHook = new Hook<CanQueueDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 84 C0 74 37 8B 84 24 90 00 00 00"), CanQueueDetour);
+            CanQueueHook.Enable();
         }
 
         public override void Disable()
@@ -91,6 +121,7 @@ namespace NoClippy.Modules
             queueThresholdHook?.Dispose();
             queueThresholdHook = null;
             Marshal.FreeHGlobal(queueThresholdPtr);
+            CanQueueHook?.Dispose();
         }
     }
 }
