@@ -232,8 +232,9 @@ namespace NoClippy.Modules
         private const ushort MudraStatusID = 496;
         private readonly Dictionary<uint, List<StatusInfo>> predictedStatuses = new()
         {
-            [7421] = new() { new() { id = 1211, stacks = 3 } }, // Triplecast
             [7561] = new() { new() { id = 167 } }, // Swiftcast
+            [7421] = new() { new() { id = 1211, stacks = 3 } }, // Triplecast
+            [7518] = new() { new() { id = 1238 } }, // Acceleration
             //[7383] = new() { new() { id = 1369 } }, // Requiescat
             //[23913] = new() { new() { id = 2560 } }, // Lost Chainspell
             // Firestarter?
@@ -404,7 +405,7 @@ namespace NoClippy.Modules
             if (ImGui.Checkbox("Predict Statuses", ref NoClippy.Config.PredictStatusApplications))
                 NoClippy.Config.Save();
             PluginUI.SetItemTooltip("Removes the effects of lag on certain statuses." +
-                "\nCurrently supported:\nSwiftcast\nTriplecast\nKassatsu");
+                "\nCurrently supported:\nSwiftcast\nTriplecast\nAcceleration\nKassatsu");
 
             ImGui.NextColumn();
 
