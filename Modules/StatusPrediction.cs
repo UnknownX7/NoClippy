@@ -241,7 +241,7 @@ namespace NoClippy.Modules
             //[2259] = new() { new() { id = MudraStatusID, stacks = 1, timer = 1f } }, // Ten
             //[2261] = new() { new() { id = MudraStatusID, stacks = 2, timer = 1f } }, // Chi
             //[2263] = new() { new() { id = MudraStatusID, stacks = 3, timer = 1f } }, // Jin
-            [2264] = new() { new() { id = 497, timer = 0.6f, beginAction = () => SwapMudras(1), endAction = () => SwapMudras(0) } }, // Kassatsu
+            [2264] = new() { new() { id = 497, beginAction = () => SwapMudras(1), endAction = () => SwapMudras(0) } }, // Kassatsu
         };
 
         // Length - 7 seems to be the last one with sourceID 0xE0000000?
@@ -353,7 +353,7 @@ namespace NoClippy.Modules
 
             dualCast = null;
             predictDualcast = true;
-            inPVP = actionID is 8883 or 8885 or 10025 or 17727;
+            //inPVP = actionID is 8883 or 8885 or 10025 or 17727; // TODO fix this
         }
 
         private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID)

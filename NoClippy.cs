@@ -87,7 +87,6 @@ namespace NoClippy
 
         private static void Update(Framework framework) => Game.Update();
 
-        #region IDisposable Support
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing) return;
@@ -109,6 +108,5 @@ namespace NoClippy
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-        #endregion
     }
 }

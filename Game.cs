@@ -132,8 +132,8 @@ namespace NoClippy
 
             defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F") + 0xA;
 
-            // This is normally 0.5f but it causes the client to be sanity checked at high ping, so I'm increasing it to see clips better and see higher pings more accurately
-            DefaultClientAnimationLock = 0.6f;
+            // This is normally 0.5f, but I'm increasing it to NoClippy's minimum to prevent any weird discrepancies on high ping
+            DefaultClientAnimationLock = 0.64f;
 
             DalamudApi.GameNetwork.NetworkMessage += NetworkMessage;
 
