@@ -36,7 +36,7 @@ namespace NoClippy.Modules
 
         public override bool IsEnabled
         {
-            get => Config.EnableAnimLockComp;
+            get => false;
             set => Config.EnableAnimLockComp = value;
         }
 
@@ -134,6 +134,8 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
+            ImGui.TextUnformatted("This feature is unfortunately causing crashes and has been\ndisabled temporarily.");
+
             ImGui.Columns(2, null, false);
 
             if (ImGui.Checkbox("Enable Anim. Lock Comp.", ref Config.EnableAnimLockComp))
