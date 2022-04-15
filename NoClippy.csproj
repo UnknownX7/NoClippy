@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyVersion>0.4.0.7</AssemblyVersion>
+    <AssemblyVersion>0.4.0.8</AssemblyVersion>
     <TargetFramework>net5.0-windows</TargetFramework>
     <PlatformTarget>x64</PlatformTarget>
     <Platforms>x64;AnyCPU</Platforms>
