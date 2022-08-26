@@ -83,17 +83,17 @@ namespace NoClippy
 
         public delegate void UpdateStatusListEventDelegate(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID);
         public static event UpdateStatusListEventDelegate OnUpdateStatusList;
-        private delegate void UpdateStatusDelegate(IntPtr status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
+        private delegate byte UpdateStatusDelegate(IntPtr status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
         //public static event UpdateStatusDelegate OnUpdateStatus;
         private static Hook<UpdateStatusDelegate> UpdateStatusHook;
-        private static void UpdateStatusDetour(IntPtr statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
+        private static byte UpdateStatusDetour(IntPtr statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
         {
             var statusPtr = (Status*)(statusList + 0x8 + 0xC * slot);
             var oldStatusID = statusPtr->StatusID;
             var oldSourceID = statusPtr->SourceID;
-            UpdateStatusHook.Original(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
+            var ret = UpdateStatusHook.Original(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
 
-            if (DalamudApi.ClientState.LocalPlayer is not { } p || statusList.ToInt64() != p.StatusList.Address.ToInt64()) return;
+            if (DalamudApi.ClientState.LocalPlayer is not { } p || statusList.ToInt64() != p.StatusList.Address.ToInt64()) return ret;
 
             //OnUpdateStatus?.Invoke(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
 
@@ -102,6 +102,8 @@ namespace NoClippy
 
             if (!individualUpdate && slot == p.StatusList.Length - 1)
                 OnUpdateStatusList?.Invoke(p.StatusList, -1, 0, 0, 0, 0);
+
+            return ret;
         }
 
         public static event GameNetwork.OnNetworkMessageDelegate OnNetworkMessage;
