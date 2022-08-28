@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Statuses;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using ImGuiNET;
-using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
 
 namespace NoClippy
 {
@@ -21,6 +21,17 @@ namespace NoClippy.Modules
 {
     public class StatusPrediction : Module
     {
+        // Previous version of FFXIVClientStruct's Status
+        [StructLayout(LayoutKind.Explicit, Size = 0xC)]
+        public struct Status
+        {
+            [FieldOffset(0x0)] public ushort StatusID;
+            [FieldOffset(0x2)] public byte StackCount;
+            [FieldOffset(0x3)] public byte Param;
+            [FieldOffset(0x4)] public float RemainingTime;
+            [FieldOffset(0x8)] public uint SourceID;
+        }
+
         public override bool IsEnabled
         {
             get => NoClippy.Config.PredictStatusApplications || NoClippy.Config.PredictMudras || NoClippy.Config.PredictDualcast;
@@ -226,7 +237,7 @@ namespace NoClippy.Modules
         {
             var jobGaugeManager = (IntPtr)JobGaugeManager.Instance();
             if (jobGaugeManager == IntPtr.Zero) return;
-            *(byte*)(jobGaugeManager + 0x18) = b;
+            *(byte*)(jobGaugeManager + 0x8 + 0xE) = b;
         }
 
         private const ushort MudraStatusID = 496;
@@ -397,8 +408,7 @@ namespace NoClippy.Modules
             ImGui.Dummy(new Vector2(1000, 8));
             ImGui.EndGroup();
             PluginUI.SetItemTooltip("This is a very early attempt at fixing a major problem with status effects and certain skills." +
-                "\nThe server should decline invalid attempts, but these settings could cause more invalid packets than usual." +
-                "\nIt is currently not known if these settings can produce unexpected results on FFLogs.");
+                "\nThe server should decline invalid attempts, but these settings could cause more invalid packets than usual.");
 
             ImGui.Columns(2, null, false);
 
