@@ -68,7 +68,7 @@ namespace NoClippy.Modules
         {
             try
             {
-                if (oldLock == newLock) return;
+                if (oldLock == newLock || sourceActor != DalamudApi.ClientState.LocalPlayer?.Address) return;
 
                 // Ignore cast locks (caster tax, teleport, lb)
                 if (isCasting)
