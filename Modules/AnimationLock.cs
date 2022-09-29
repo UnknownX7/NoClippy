@@ -32,7 +32,7 @@ namespace NoClippy.Modules
 
         // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 GCD triple
 
-        // This module simulates around 10 ms ping inside instances (spiking makes this look closer to 15 ms)
+        // This module simulates around 10 ms ping inside instances
 
         public override bool IsEnabled
         {
@@ -94,7 +94,7 @@ namespace NoClippy.Modules
 
                 var prevAverage = delay;
                 var newAverage = AverageDelay(responseTime, packetsSent > 1 ? 0.1f : 1f);
-                var average = prevAverage > 0 ? prevAverage : newAverage;
+                var average = Math.Max(prevAverage > 0 ? prevAverage : newAverage, 0.001f);
 
                 var spikeMult = Math.Max(responseTime / average, 1);
                 var addedDelay = 0.04f * spikeMult;
@@ -107,7 +107,7 @@ namespace NoClippy.Modules
                 if (!Config.EnableLogging) return;
 
                 PrintLog($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}" +
-                    $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} (+{(spikeMult - 1):P0}) ms" +
+                    $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} (+{spikeMult - 1:P0}) ms" +
                     $"{(Config.EnableDryRun && newLock <= 0.6f && isUsingAlexander ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
                     $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock)}) ms" +
                     $" || Packets: {packetsSent}");
