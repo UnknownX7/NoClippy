@@ -11,6 +11,9 @@ namespace NoClippy
     {
         public static Structures.ActionManager* actionManager;
 
+        private static delegate* unmanaged<uint, uint, uint> getSpellIDForAction;
+        public static uint GetSpellIDForAction(uint type, uint id) => getSpellIDForAction(type, id);
+
         private static IntPtr defaultClientAnimationLockPtr;
         public static float DefaultClientAnimationLock
         {
@@ -121,10 +124,12 @@ namespace NoClippy
             ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
             UpdateStatusHook = new Hook<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? FF C6 48 8D 5B 0C"), UpdateStatusDetour);
 
+            getSpellIDForAction = (delegate* unmanaged<uint, uint, uint>)DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 44 8B 4B 2C");
+
             defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F") + 0xA;
 
-            // This is normally 0.5f, but I'm increasing it to NoClippy's minimum to prevent any weird discrepancies on high ping
-            DefaultClientAnimationLock = 0.64f;
+            // This is normally 0.5f, but I'm increasing it to prevent any weird discrepancies on high ping
+            DefaultClientAnimationLock = 0.6f;
 
             DalamudApi.GameNetwork.NetworkMessage += NetworkMessage;
 

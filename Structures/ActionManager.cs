@@ -12,7 +12,7 @@ namespace NoClippy.Structures
         [FieldOffset(0x60)] public float remainingComboTime;
         [FieldOffset(0x68)] public bool isQueued;
         [FieldOffset(0x110)] public ushort currentSequence;
-        [FieldOffset(0x112)] public ushort lastReceivedSequence;
+        //[FieldOffset(0x112)] public ushort unknownSequence; // ???
         [FieldOffset(0x610)] public bool isGCDRecastActive;
         [FieldOffset(0x614)] public uint currentGCDAction;
         [FieldOffset(0x618)] public float elapsedGCDRecastTime;

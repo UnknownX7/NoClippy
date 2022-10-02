@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Network;
+using Dalamud.Logging;
 using ImGuiNET;
 using static NoClippy.NoClippy;
 
@@ -27,7 +28,7 @@ namespace NoClippy.Modules
         // Therefore, most players will never receive a response within 40 ms at any ping
         // Another interesting fact is that the delay from the server will spike if you send multiple packets at the same time
         // This seems to imply that the server will not process more than one packet from you per tick
-        // You can see this if you sheathe your weapon before using an ability, you will notice delays that are around 50 ms higher than usual
+        // You can see this if you sheathe your weapon before using an action, you will notice delays that are around 50 ms higher than usual
         // This explains the phenomenon where moving seems to make it harder to weave
 
         // For these reasons, I do not believe it is possible to triple weave on any ping without clipping even the slightest amount as that would require 25 ms response times for a 2.5 GCD triple
@@ -42,25 +43,49 @@ namespace NoClippy.Modules
 
         public override int DrawOrder => 1;
 
+        private const float simulatedRTT = 0.04f;
         private float delay = -1;
         private int packetsSent = 0;
         private bool isCasting = false;
         private float intervalPacketsTimer = 0;
         private int intervalPacketsIndex = 0;
         private readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
+        private bool enableAnticheat = false;
+
+        public bool IsDryRunEnabled => enableAnticheat || Config.EnableDryRun;
 
         private float AverageDelay(float currentDelay, float weight) =>
             delay > 0
                 ? delay = delay * (1 - weight) + currentDelay * weight
                 : delay = currentDelay; // Initial starting delay
 
-        private static void UpdateDatabase(uint action, float animLock)
+        private static float GetAnimationLock(uint actionID) => (!Config.AnimationLocks.TryGetValue(actionID, out var animationLock) || animationLock < 0.5f
+                ? Game.DefaultClientAnimationLock
+                : animationLock)
+            + simulatedRTT;
+
+        private static void UpdateDatabase(uint actionID, float animationLock)
         {
-            Config.AnimationLocks[action] = animLock;
+            if (Config.AnimationLocks.TryGetValue(actionID, out var oldLock) && oldLock == animationLock) return;
+            Config.AnimationLocks[actionID] = animationLock;
             Config.Save();
+            PluginLog.Debug($"Recorded new animation lock value of {F2MS(animationLock)} ms for {actionID}");
         }
 
-        private void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param) => packetsSent = intervalPackets.Sum();
+        private unsafe void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
+        {
+            packetsSent = intervalPackets.Sum();
+
+            if (Game.actionManager->animationLock != Game.DefaultClientAnimationLock) return;
+
+            var id = Game.GetSpellIDForAction(actionType, actionID);
+            var animationLock = GetAnimationLock(id);
+            if (!IsDryRunEnabled)
+                Game.actionManager->animationLock = animationLock;
+
+            PluginLog.Debug($"Applying {F2MS(animationLock)} ms animation lock for {actionType} {actionID} ({id})");
+        }
+
         private void CastBegin(ulong objectID, IntPtr packetData) => isCasting = true;
         private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID) => isCasting = false;
 
@@ -74,43 +99,74 @@ namespace NoClippy.Modules
                 if (isCasting)
                 {
                     isCasting = false;
+
+                    // The old lock should always be 0, but high ping can cause the packet to arrive too late and allow near instant double weaves
+                    newLock += oldLock;
+                    if (!IsDryRunEnabled)
+                        Game.actionManager->animationLock = newLock;
+
                     if (Config.EnableLogging)
-                        PrintLog($"Ignored reducing server cast lock of {F2MS(newLock)} ms");
+                        PrintLog($"Cast Lock: {F2MS(newLock)} ms (+{F2MS(oldLock)})");
+                    return;
+                }
+
+                if (newLock != *(float*)(effectHeader + 0x10))
+                {
+                    PrintError("Mismatched animation lock offset!");
                     return;
                 }
 
                 // Special case to (mostly) prevent accidentally using XivAlexander at the same time
                 var isUsingAlexander = newLock % 0.01 is >= 0.0005f and <= 0.0095f;
-                if (!Config.EnableDryRun && isUsingAlexander)
+                if (!enableAnticheat && isUsingAlexander)
                 {
-                    Config.EnableDryRun = true;
-                    PrintError($"Unexpected lock of {F2MS(newLock)} ms, dry run has been enabled");
+                    enableAnticheat = true;
+                    PrintError($"Unexpected lock of {F2MS(newLock)} ms, temporary dry run has been enabled");
                 }
 
-                if (!isUsingAlexander && !Game.actionManager->isCasting)
-                    UpdateDatabase(*(uint*)(effectHeader + 0x8), *(float*)(effectHeader + 0x10));
+                var actionID = *(uint*)(effectHeader + 0x8);
+                var appliedLock = GetAnimationLock(actionID);
+                var lastRecordedLock = appliedLock - simulatedRTT;
 
-                var responseTime = Game.DefaultClientAnimationLock - oldLock;
+                if (!enableAnticheat)
+                    UpdateDatabase(actionID, newLock);
+
+                // Get the difference between the recorded animation lock and the real one
+                var correction = newLock - lastRecordedLock;
+                var rtt = appliedLock - oldLock;
+
+                if (rtt <= simulatedRTT)
+                {
+                    if (Config.EnableLogging)
+                        PrintLog($"RTT ({F2MS(rtt)} ms) was lower than {F2MS(simulatedRTT)} ms, no adjustments were made");
+                    return;
+                }
 
                 var prevAverage = delay;
-                var newAverage = AverageDelay(responseTime, packetsSent > 1 ? 0.1f : 1f);
+                var newAverage = AverageDelay(rtt, packetsSent > 1 ? 0.1f : 1f);
                 var average = Math.Max(prevAverage > 0 ? prevAverage : newAverage, 0.001f);
 
-                var spikeMult = Math.Max(responseTime / average, 1);
-                var addedDelay = 0.04f * spikeMult;
+                var variationMultiplier = Math.Max(rtt / average, 1) - 1;
+                var networkVariation = simulatedRTT * variationMultiplier;
 
-                var delayOverride = Math.Min(Math.Max(newLock - responseTime + addedDelay, 0), newLock);
+                var adjustedAnimationLock = Math.Max(oldLock + correction + networkVariation, 0);
 
-                if (!Config.EnableDryRun)
-                    Game.actionManager->animationLock = delayOverride;
+                if (!IsDryRunEnabled && float.IsFinite(adjustedAnimationLock) && adjustedAnimationLock < 10)
+                    Game.actionManager->animationLock = adjustedAnimationLock;
 
                 if (!Config.EnableLogging) return;
 
-                PrintLog($"{(Config.EnableDryRun ? "[DRY] " : string.Empty)}" +
-                    $"Response: {F2MS(responseTime)} ({F2MS(average)}) > {F2MS(addedDelay)} (+{spikeMult - 1:P0}) ms" +
-                    $"{(Config.EnableDryRun && newLock <= 0.6f && isUsingAlexander ? $" [Alexander: {F2MS(responseTime - (0.6f - newLock))} ms]" : string.Empty)}" +
-                    $" || Lock: {F2MS(newLock)} > {F2MS(delayOverride)} ({F2MS(delayOverride - newLock)}) ms" +
-                    $" || Packets: {packetsSent}");
+                var logString = IsDryRunEnabled ? "[DRY] " : string.Empty;
+                logString += $"Action: {actionID} {(correction > 0 ? $"({F2MS(lastRecordedLock)} > {F2MS(newLock)} ms)" : $"({F2MS(newLock)} ms)")}";
+                logString += $" || RTT: {F2MS(rtt)} (+{variationMultiplier:P0}) ms";
+
+                if (enableAnticheat)
+                    logString += $" [Alexander: {F2MS(rtt - (lastRecordedLock - newLock))} ms]";
+
+                logString += $" || Lock: {F2MS(oldLock)} > {F2MS(adjustedAnimationLock)} ({F2MS(correction + networkVariation):+0;-#}) ms";
+                logString += $" || Packets: {packetsSent}";
+
+                PrintLog(logString);
             }
             catch { PrintError("Error in AnimationLock Module"); }
         }
@@ -134,27 +190,27 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
-            ImGui.Columns(2, null, false);
-
-            if (ImGui.Checkbox("Enable Anim. Lock Comp.", ref Config.EnableAnimLockComp))
+            if (ImGui.Checkbox("Enable Animation Lock Reduction", ref Config.EnableAnimLockComp))
                 Config.Save();
-            PluginUI.SetItemTooltip("Reduces the animation lock to simulate about 10 ms ping," +
-                "\nplease enable dry run if you just want logging with XivAlexander.");
-
-            ImGui.NextColumn();
+            PluginUI.SetItemTooltip("Modifies the way the game handles animation lock," +
+                "\ncausing it to simulate 10 ms ping.");
 
             if (Config.EnableAnimLockComp)
             {
-                ImGui.NextColumn();
+                ImGui.Columns(2, null, false);
 
                 if (ImGui.Checkbox("Enable Logging", ref Config.EnableLogging))
                     Config.Save();
-                //PluginUI.SetItemTooltip("Logs information.");
 
                 ImGui.NextColumn();
 
-                if (ImGui.Checkbox("Dry Run", ref Config.EnableDryRun))
+                var _ = IsDryRunEnabled;
+                if (ImGui.Checkbox("Dry Run", ref _))
+                {
+                    Config.EnableDryRun = _;
+                    enableAnticheat = false;
                     Config.Save();
+                }
                 PluginUI.SetItemTooltip("The plugin will still log and perform calculations, but no in-game values will be overwritten.");
             }
 
