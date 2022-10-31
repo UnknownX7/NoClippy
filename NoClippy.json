@@ -14,5 +14,5 @@
   ],
   "InternalName": "NoClippy",
   "AssemblyVersion": "9.9.9.9",
-  "Changelog": ""
+  "Changelog": "Reworked animation lock reduction, added Eukrasia prediction"
 }
