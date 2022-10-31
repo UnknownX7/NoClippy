@@ -14,7 +14,7 @@ namespace NoClippy
         public bool EnableLogging = false;
         public bool EnableDryRun = false;
         public Dictionary<uint, float> AnimationLocks = new();
-        public float totalAnimationLockReduction = 0f;
+        public float TotalAnimationLockReduction = 0f;
     }
 }
 
@@ -156,7 +156,7 @@ namespace NoClippy.Modules
                 {
                     Game.actionManager->animationLock = adjustedAnimationLock;
 
-                    if (Config.totalAnimationLockReduction % 20 > (Config.totalAnimationLockReduction += newLock - adjustedAnimationLock) % 20)
+                    if (Config.TotalAnimationLockReduction % 20 > (Config.TotalAnimationLockReduction += newLock - adjustedAnimationLock) % 20)
                         Config.Save();
                 }
 
@@ -222,7 +222,7 @@ namespace NoClippy.Modules
 
             ImGui.Columns(1);
 
-            ImGui.TextUnformatted($"Total Animation Lock Reduced: {TimeSpan.FromSeconds(Config.totalAnimationLockReduction):d\\:hh\\:mm\\:ss}");
+            ImGui.TextUnformatted($"Total Animation Lock Reduced: {TimeSpan.FromSeconds(Config.TotalAnimationLockReduction):d\\:hh\\:mm\\:ss}");
         }
 
         public override void Enable()
