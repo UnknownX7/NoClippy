@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
 using Dalamud.Logging;
 using ImGuiNET;
@@ -14,6 +15,7 @@ namespace NoClippy
         public bool EnableLogging = false;
         public bool EnableDryRun = false;
         public Dictionary<uint, float> AnimationLocks = new();
+        public ulong TotalActionsReduced = 0;
         public float TotalAnimationLockReduction = 0f;
     }
 }
@@ -52,6 +54,7 @@ namespace NoClippy.Modules
         private int intervalPacketsIndex = 0;
         private readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
         private bool enableAnticheat = false;
+        private bool saveConfig = false;
 
         public bool IsDryRunEnabled => enableAnticheat || Config.EnableDryRun;
 
@@ -156,8 +159,11 @@ namespace NoClippy.Modules
                 {
                     Game.actionManager->animationLock = adjustedAnimationLock;
 
-                    if (Config.TotalAnimationLockReduction % 20 > (Config.TotalAnimationLockReduction += newLock - adjustedAnimationLock) % 20)
-                        Config.Save();
+                    Config.TotalAnimationLockReduction += newLock - adjustedAnimationLock;
+                    Config.TotalActionsReduced++;
+
+                    if (!saveConfig && DalamudApi.Condition[ConditionFlag.InCombat])
+                        saveConfig = true;
                 }
 
                 if (!Config.EnableLogging) return;
@@ -185,6 +191,12 @@ namespace NoClippy.Modules
 
         private void Update()
         {
+            if (saveConfig && !DalamudApi.Condition[ConditionFlag.InCombat])
+            {
+                Config.Save();
+                saveConfig = false;
+            }
+
             intervalPacketsTimer += (float)DalamudApi.Framework.UpdateDelta.TotalSeconds;
             while (intervalPacketsTimer >= 0.01f)
             {
@@ -222,7 +234,7 @@ namespace NoClippy.Modules
 
             ImGui.Columns(1);
 
-            ImGui.TextUnformatted($"Total Animation Lock Reduced: {TimeSpan.FromSeconds(Config.TotalAnimationLockReduction):d\\:hh\\:mm\\:ss}");
+            ImGui.TextUnformatted($"Reduced a total time of {TimeSpan.FromSeconds(Config.TotalAnimationLockReduction):d\\:hh\\:mm\\:ss} from {Config.TotalActionsReduced} actions.");
         }
 
         public override void Enable()
