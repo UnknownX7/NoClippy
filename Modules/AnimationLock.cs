@@ -76,7 +76,7 @@ namespace NoClippy.Modules
             PluginLog.Debug($"Recorded new animation lock value of {F2MS(animationLock)} ms for {actionID}");
         }
 
-        private unsafe void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
+        private unsafe void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, byte ret)
         {
             packetsSent = intervalPackets.Sum();
 
@@ -128,7 +128,7 @@ namespace NoClippy.Modules
                     PrintError($"Unexpected lock of {F2MS(newLock)} ms, temporary dry run has been enabled");
                 }
 
-                var actionID = *(uint*)(effectHeader + 0x8);
+                var actionID = *(ushort*)(effectHeader + 0x1C);
                 var appliedLock = GetAnimationLock(actionID);
                 var lastRecordedLock = appliedLock - simulatedRTT;
 
@@ -234,7 +234,7 @@ namespace NoClippy.Modules
 
             ImGui.Columns(1);
 
-            ImGui.TextUnformatted($"Reduced a total time of {TimeSpan.FromSeconds(Config.TotalAnimationLockReduction):d\\:hh\\:mm\\:ss} from {Config.TotalActionsReduced} actions.");
+            ImGui.TextUnformatted($"Reduced a total time of {TimeSpan.FromSeconds(Config.TotalAnimationLockReduction):d\\:hh\\:mm\\:ss} from {Config.TotalActionsReduced} actions");
         }
 
         public override void Enable()

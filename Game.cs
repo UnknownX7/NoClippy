@@ -25,27 +25,25 @@ namespace NoClippy
             }
         }
 
-        public delegate void UseActionEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, IntPtr a8);
+        public delegate void UseActionEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, IntPtr a8, byte ret);
         public static event UseActionEventDelegate OnUseAction;
         private delegate byte UseActionDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, IntPtr a8);
         private static Hook<UseActionDelegate> UseActionHook;
         private static byte UseActionDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, IntPtr a8)
         {
             var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8);
-            if (ret > 0)
-                OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8);
+            OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8, ret);
             return ret;
         }
 
-        public delegate void UseActionLocationEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
+        public delegate void UseActionLocationEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, byte ret);
         public static event UseActionLocationEventDelegate OnUseActionLocation;
         private delegate byte UseActionLocationDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
         private static Hook<UseActionLocationDelegate> UseActionLocationHook;
         private static byte UseActionLocationDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
         {
             var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
-            if (ret > 0)
-                OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
+            OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, ret);
             return ret;
         }
 
