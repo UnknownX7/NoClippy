@@ -15,8 +15,8 @@ namespace NoClippy
         public bool EnableLogging = false;
         public bool EnableDryRun = false;
         public Dictionary<uint, float> AnimationLocks = new();
-        public ulong TotalActionsReduced = 0;
-        public float TotalAnimationLockReduction = 0f;
+        public ulong TotalActionsReduced = 0ul;
+        public double TotalAnimationLockReduction = 0d;
     }
 }
 
