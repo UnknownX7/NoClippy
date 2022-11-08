@@ -1,5 +1,6 @@
 using System;
 using Dalamud.Game;
+using Dalamud.Game.Text;
 using Dalamud.Logging;
 using Dalamud.Plugin;
 
@@ -78,9 +79,17 @@ namespace NoClippy
         public static void PrintLog(string message)
         {
             if (Config.LogToChat)
-                PrintEcho(message);
+            {
+                DalamudApi.ChatGui.PrintChat(new XivChatEntry
+                {
+                    Message = $"[NoClippy] {message}",
+                    Type = XivChatType.Echo
+                });
+            }
             else
+            {
                 PluginLog.LogInformation(message);
+            }
         }
 
         public static int F2MS(float f) => (int)Math.Round(f * 1000);

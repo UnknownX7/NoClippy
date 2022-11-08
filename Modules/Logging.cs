@@ -21,7 +21,7 @@ namespace NoClippy.Modules
 
             if (ImGui.Checkbox("Output to Chat Log", ref NoClippy.Config.LogToChat))
                 NoClippy.Config.Save();
-            PluginUI.SetItemTooltip("Sends logging to the chat log instead.");
+            PluginUI.SetItemTooltip("Sends logging to the chat log as an echo instead.");
 
             ImGui.Columns(1);
         }
