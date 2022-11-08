@@ -125,7 +125,7 @@ namespace NoClippy.Modules
                 if (!enableAnticheat && isUsingAlexander)
                 {
                     enableAnticheat = true;
-                    PrintError($"Unexpected lock of {F2MS(newLock)} ms, temporary dry run has been enabled");
+                    PrintError($"Unexpected lock of {F2MS(newLock)} ms, temporary dry run has been enabled. Please disable any other programs or plugins that may be affecting the animation lock.");
                 }
 
                 var actionID = *(ushort*)(effectHeader + 0x1C);
