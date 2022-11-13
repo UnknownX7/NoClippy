@@ -80,11 +80,18 @@ namespace NoClippy
         {
             if (Config.LogToChat)
             {
-                DalamudApi.ChatGui.PrintChat(new XivChatEntry
+                if (Config.LogChatType != XivChatType.None)
                 {
-                    Message = $"[NoClippy] {message}",
-                    Type = XivChatType.Echo
-                });
+                    DalamudApi.ChatGui.PrintChat(new XivChatEntry
+                    {
+                        Message = $"[NoClippy] {message}",
+                        Type = Config.LogChatType
+                    });
+                }
+                else
+                {
+                    PrintEcho(message);
+                }
             }
             else
             {

@@ -1,3 +1,5 @@
+using System;
+using Dalamud.Game.Text;
 using ImGuiNET;
 
 namespace NoClippy
@@ -5,6 +7,7 @@ namespace NoClippy
     public partial class Configuration
     {
         public bool LogToChat = false;
+        public XivChatType LogChatType = XivChatType.None;
     }
 }
 
@@ -17,13 +20,26 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
-            ImGui.Columns(2, null, false);
-
             if (ImGui.Checkbox("Output to Chat Log", ref NoClippy.Config.LogToChat))
                 NoClippy.Config.Save();
-            PluginUI.SetItemTooltip("Sends logging to the chat log as an echo instead.");
+            PluginUI.SetItemTooltip("Sends logging to the chat log instead.");
 
-            ImGui.Columns(1);
+            if (!NoClippy.Config.LogToChat) return;
+
+            if (ImGui.BeginCombo("Log Chat Type", NoClippy.Config.LogChatType.ToString()))
+            {
+                foreach (var chatType in Enum.GetValues<XivChatType>())
+                {
+                    if (!ImGui.Selectable(chatType.ToString())) continue;
+
+                    NoClippy.Config.LogChatType = chatType;
+                    NoClippy.Config.Save();
+                }
+
+                ImGui.EndCombo();
+            }
+
+            PluginUI.SetItemTooltip("Overrides the default Dalamud Chat Channel.");
         }
     }
 }
