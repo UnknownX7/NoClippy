@@ -29,24 +29,24 @@ namespace NoClippy.Modules
 
         public override int DrawOrder => 10;
 
-        private IntPtr queueThresholdPtr = IntPtr.Zero;
+        private nint queueThresholdPtr = nint.Zero;
         private AsmHook queueThresholdHook;
 
         private ushort lastSequence = 0;
 
         private unsafe float Threshold
         {
-            get => queueThresholdPtr == IntPtr.Zero ? 0.5f : *(float*)queueThresholdPtr;
+            get => queueThresholdPtr == nint.Zero ? 0.5f : *(float*)queueThresholdPtr;
             set
             {
-                if (queueThresholdPtr == IntPtr.Zero) return;
+                if (queueThresholdPtr == nint.Zero) return;
                 *(float*)queueThresholdPtr = value < 2.5f ? value : 10;
             }
         }
 
-        private delegate byte CanQueueDelegate(IntPtr actionManager, uint actionType, uint actionID);
+        private delegate byte CanQueueDelegate(nint actionManager, uint actionType, uint actionID);
         private Hook<CanQueueDelegate> CanQueueHook;
-        private unsafe byte CanQueueDetour(IntPtr actionManager, uint actionType, uint actionID)
+        private unsafe byte CanQueueDetour(nint actionManager, uint actionType, uint actionID)
         {
             if (NoClippy.Config.EnableDynamicThreshold && Game.actionManager->currentSequence != lastSequence)
             {
@@ -61,7 +61,7 @@ namespace NoClippy.Modules
         {
             queueThresholdPtr = Marshal.AllocHGlobal(sizeof(float));
 
-            var ptrStr = BitConverter.GetBytes(queueThresholdPtr.ToInt64()).Reverse()
+            var ptrStr = BitConverter.GetBytes(queueThresholdPtr).Reverse()
                 .Aggregate(string.Empty, (current, b) => current + b.ToString("X2")) + "h";
             var asm = new[]
             {
@@ -114,7 +114,7 @@ namespace NoClippy.Modules
                 SetupQueueThreshold();
 
             Threshold = NoClippy.Config.QueueThreshold;
-            CanQueueHook = new Hook<CanQueueDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 84 C0 74 37 8B 84 24 90 00 00 00"), CanQueueDetour);
+            CanQueueHook = new Hook<CanQueueDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 84 C0 74 37 8B 84 24 ?? ?? 00 00"), CanQueueDetour);
             CanQueueHook.Enable();
         }
 

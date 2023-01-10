@@ -76,7 +76,7 @@ namespace NoClippy.Modules
             PluginLog.Debug($"Recorded new animation lock value of {F2MS(animationLock)} ms for {actionID}");
         }
 
-        private unsafe void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, byte ret)
+        private unsafe void UseActionLocation(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param, byte ret)
         {
             packetsSent = intervalPackets.Sum();
 
@@ -90,10 +90,10 @@ namespace NoClippy.Modules
             PluginLog.Debug($"Applying {F2MS(animationLock)} ms animation lock for {actionType} {actionID} ({id})");
         }
 
-        private void CastBegin(ulong objectID, IntPtr packetData) => isCasting = true;
-        private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID) => isCasting = false;
+        private void CastBegin(ulong objectID, nint packetData) => isCasting = true;
+        private void CastInterrupt(nint actionManager, uint actionType, uint actionID) => isCasting = false;
 
-        private unsafe void ReceiveActionEffect(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock)
+        private unsafe void ReceiveActionEffect(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail, float oldLock, float newLock)
         {
             try
             {
@@ -116,7 +116,7 @@ namespace NoClippy.Modules
 
                 if (newLock != *(float*)(effectHeader + 0x10))
                 {
-                    PrintError("Mismatched animation lock offset!");
+                    PrintError("Mismatched animation lock offset! This can be caused by another plugin affecting the animation lock.");
                     return;
                 }
 
@@ -183,7 +183,7 @@ namespace NoClippy.Modules
             catch { PrintError("Error in AnimationLock Module"); }
         }
 
-        private void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
+        private void NetworkMessage(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
         {
             if (direction != NetworkMessageDirection.ZoneUp) return;
             intervalPackets[intervalPacketsIndex]++;

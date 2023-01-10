@@ -39,7 +39,7 @@ namespace NoClippy.Modules
                 ImGui.EndCombo();
             }
 
-            PluginUI.SetItemTooltip("Overrides the default Dalamud Chat Channel.");
+            PluginUI.SetItemTooltip("Overrides the default Dalamud chat channel.");
         }
     }
 }

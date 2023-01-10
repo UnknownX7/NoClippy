@@ -266,7 +266,7 @@ namespace NoClippy.Modules
         // Length - 7 seems to be the last one with sourceID 0xE0000000?
         private static unsafe bool IsStatusValid(Status* statusPtr) => statusPtr->StatusID != 0 && (statusPtr->RemainingTime > 0 || statusPtr->SourceID is not (0 or 0xE0000000));
 
-        private void UseActionLocation(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, byte ret)
+        private void UseActionLocation(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param, byte ret)
         {
             if (actionType != 1 || ret == 0) return;
 
@@ -363,7 +363,7 @@ namespace NoClippy.Modules
             predictDualcast = false;
         }
 
-        private unsafe void CastBegin(ulong objectID, IntPtr packetData)
+        private unsafe void CastBegin(ulong objectID, nint packetData)
         {
             if (!NoClippy.Config.PredictDualcast || DalamudApi.ClientState.LocalPlayer?.ClassJob.Id != 35 || *(byte*)(packetData + 2) != 1) return;
 
@@ -375,7 +375,7 @@ namespace NoClippy.Modules
             //inPVP = actionID is 8883 or 8885 or 10025 or 17727; // TODO fix this
         }
 
-        private void CastInterrupt(IntPtr actionManager, uint actionType, uint actionID)
+        private void CastInterrupt(nint actionManager, uint actionType, uint actionID)
         {
             if (!predictDualcast) return;
             predictedStatusList.Remove(dualCast);

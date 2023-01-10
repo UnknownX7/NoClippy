@@ -14,33 +14,33 @@ namespace NoClippy
         private static delegate* unmanaged<uint, uint, uint> getSpellIDForAction;
         public static uint GetSpellIDForAction(uint type, uint id) => getSpellIDForAction(type, id);
 
-        private static IntPtr defaultClientAnimationLockPtr;
+        private static nint defaultClientAnimationLockPtr;
         public static float DefaultClientAnimationLock
         {
             get => *(float*)defaultClientAnimationLockPtr;
             set
             {
-                if (defaultClientAnimationLockPtr != IntPtr.Zero)
+                if (defaultClientAnimationLockPtr != nint.Zero)
                     SafeMemory.WriteBytes(defaultClientAnimationLockPtr, BitConverter.GetBytes(value));
             }
         }
 
-        public delegate void UseActionEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, IntPtr a8, byte ret);
+        public delegate void UseActionEventDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, nint a8, byte ret);
         public static event UseActionEventDelegate OnUseAction;
-        private delegate byte UseActionDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, IntPtr a8);
+        private delegate byte UseActionDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, nint a8);
         private static Hook<UseActionDelegate> UseActionHook;
-        private static byte UseActionDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, IntPtr a8)
+        private static byte UseActionDetour(nint actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, nint a8)
         {
             var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8);
             OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8, ret);
             return ret;
         }
 
-        public delegate void UseActionLocationEventDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param, byte ret);
+        public delegate void UseActionLocationEventDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param, byte ret);
         public static event UseActionLocationEventDelegate OnUseActionLocation;
-        private delegate byte UseActionLocationDelegate(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param);
+        private delegate byte UseActionLocationDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param);
         private static Hook<UseActionLocationDelegate> UseActionLocationHook;
-        private static byte UseActionLocationDetour(IntPtr actionManager, uint actionType, uint actionID, long targetedActorID, IntPtr vectorLocation, uint param)
+        private static byte UseActionLocationDetour(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param)
         {
             var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
             OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, ret);
@@ -48,10 +48,10 @@ namespace NoClippy
         }
 
         private static bool invokeCastInterrupt = false;
-        public delegate void CastBeginDelegate(ulong objectID, IntPtr packetData);
+        public delegate void CastBeginDelegate(ulong objectID, nint packetData);
         public static event CastBeginDelegate OnCastBegin;
         private static Hook<CastBeginDelegate> CastBeginHook;
-        private static void CastBeginDetour(ulong objectID, IntPtr packetData)
+        private static void CastBeginDetour(ulong objectID, nint packetData)
         {
             CastBeginHook.Original(objectID, packetData);
             if (objectID != DalamudApi.ClientState.LocalPlayer?.ObjectId) return;
@@ -60,10 +60,10 @@ namespace NoClippy
         }
 
         // Seems to always be called twice?
-        public delegate void CastInterruptDelegate(IntPtr actionManager, uint actionType, uint actionID);
+        public delegate void CastInterruptDelegate(nint actionManager, uint actionType, uint actionID);
         public static event CastInterruptDelegate OnCastInterrupt;
         private static Hook<CastInterruptDelegate> CastInterruptHook;
-        private static void CastInterruptDetour(IntPtr actionManager, uint actionType, uint actionID)
+        private static void CastInterruptDetour(nint actionManager, uint actionType, uint actionID)
         {
             CastInterruptHook.Original(actionManager, actionType, actionID);
             if (!invokeCastInterrupt) return;
@@ -71,11 +71,11 @@ namespace NoClippy
             invokeCastInterrupt = false;
         }
 
-        public delegate void ReceiveActionEffectEventDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail, float oldLock, float newLock);
+        public delegate void ReceiveActionEffectEventDelegate(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail, float oldLock, float newLock);
         public static event ReceiveActionEffectEventDelegate OnReceiveActionEffect;
-        private delegate void ReceiveActionEffectDelegate(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail);
+        private delegate void ReceiveActionEffectDelegate(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail);
         private static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
-        private static void ReceiveActionEffectDetour(int sourceActorID, IntPtr sourceActor, IntPtr vectorPosition, IntPtr effectHeader, IntPtr effectArray, IntPtr effectTrail)
+        private static void ReceiveActionEffectDetour(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail)
         {
             var oldLock = actionManager->animationLock;
             ReceiveActionEffectHook.Original(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail);
@@ -84,10 +84,10 @@ namespace NoClippy
 
         public delegate void UpdateStatusListEventDelegate(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID);
         public static event UpdateStatusListEventDelegate OnUpdateStatusList;
-        private delegate byte UpdateStatusDelegate(IntPtr status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
+        private delegate byte UpdateStatusDelegate(nint status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
         //public static event UpdateStatusDelegate OnUpdateStatus;
         private static Hook<UpdateStatusDelegate> UpdateStatusHook;
-        private static byte UpdateStatusDetour(IntPtr statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
+        private static byte UpdateStatusDetour(nint statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
         {
             var statusPtr = (Status*)(statusList + 0x8 + 0xC * slot);
             var oldStatusID = statusPtr->StatusID;
@@ -108,15 +108,15 @@ namespace NoClippy
         }
 
         public static event GameNetwork.OnNetworkMessageDelegate OnNetworkMessage;
-        private static void NetworkMessage(IntPtr dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction) =>
+        private static void NetworkMessage(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction) =>
             OnNetworkMessage?.Invoke(dataPtr, opCode, sourceActorId, targetActorId, direction);
 
         public static void Initialize()
         {
             actionManager = (Structures.ActionManager*)ActionManager.Instance();
 
-            UseActionHook = new Hook<UseActionDelegate>((IntPtr)ActionManager.fpUseAction, UseActionDetour);
-            UseActionLocationHook = new Hook<UseActionLocationDelegate>((IntPtr)ActionManager.fpUseActionLocation, UseActionLocationDetour);
+            UseActionHook = new Hook<UseActionDelegate>((nint)ActionManager.MemberFunctionPointers.UseAction, UseActionDetour);
+            UseActionLocationHook = new Hook<UseActionLocationDelegate>((nint)ActionManager.MemberFunctionPointers.UseActionLocation, UseActionLocationDetour);
             CastBeginHook = new Hook<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 55 56 48 81 EC ?? ?? ?? ?? 48 8B EA"), CastBeginDetour); // Bad sig, found within ActorCast packet
             CastInterruptHook = new Hook<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 8B 4B 28 8D 41 FF"), CastInterruptDetour); // Found inside ActorControl (15) packet
             ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
@@ -150,9 +150,9 @@ namespace NoClippy
             OnUseAction = null;
             UseActionLocationHook?.Dispose();
             OnUseActionLocation = null;
-            CastBeginHook.Dispose();
+            CastBeginHook?.Dispose();
             OnCastBegin = null;
-            CastInterruptHook.Dispose();
+            CastInterruptHook?.Dispose();
             OnCastInterrupt = null;
             ReceiveActionEffectHook?.Dispose();
             OnReceiveActionEffect = null;
