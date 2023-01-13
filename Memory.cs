@@ -39,7 +39,7 @@ public static class Memory
         {
             var addr = nint.Zero;
             try { addr = DalamudApi.SigScanner.ScanModule(sig); }
-            catch { PluginLog.LogError($"Failed to find signature {sig}"); }
+            catch { }
             if (addr == nint.Zero) return;
 
             Address = addr;
