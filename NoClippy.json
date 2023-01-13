@@ -14,5 +14,5 @@
   ],
   "InternalName": "NoClippy",
   "AssemblyVersion": "9.9.9.9",
-  "Changelog": ""
+  "Changelog": "Forcefully fix the mudra bug. There is no setting to enable, this fix is applied automatically!"
 }

@@ -9,6 +9,9 @@ namespace NoClippy
 {
     public static unsafe class Game
     {
+        // TEMPORARY, this is designed to break whenever the issue is fixed
+        public static readonly Memory.Replacer fixGCDRecast = new("F6 47 3B 02 74 3E 8D 83 83 C1 FF FF", new byte[] { 0xF6, 0x47, 0x3B, 0x02, 0x75 }, true);
+
         public static Structures.ActionManager* actionManager;
 
         private static delegate* unmanaged<uint, uint, uint> getSpellIDForAction;
@@ -144,6 +147,9 @@ namespace NoClippy
 
         public static void Dispose()
         {
+            // TEMPORARY
+            Memory.Dispose();
+
             DalamudApi.GameNetwork.NetworkMessage -= NetworkMessage;
 
             UseActionHook?.Dispose();
