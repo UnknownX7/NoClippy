@@ -76,7 +76,7 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
-            ImGui.TextUnformatted("Queue Threshold will be reworked and moved to ReAction\nin an upcoming update.");
+            ImGui.TextUnformatted("An improved Queue Threshold is now available via ReAction.\nThis feature will be removed in an upcoming update.");
 
             var _ = NoClippy.Config.QueueThreshold != 0.5f;
             if (ImGui.Checkbox("##QueueThresholdIsEnabled", ref _))

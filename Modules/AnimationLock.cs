@@ -55,6 +55,7 @@ namespace NoClippy.Modules
         private readonly int[] intervalPackets = new int[5]; // Record the last 50 ms of packets
         private bool enableAnticheat = false;
         private bool saveConfig = false;
+        private readonly Dictionary<ushort, float> appliedAnimationLocks = new();
 
         public bool IsDryRunEnabled => enableAnticheat || Config.EnableDryRun;
 
@@ -86,6 +87,7 @@ namespace NoClippy.Modules
             var animationLock = GetAnimationLock(id);
             if (!IsDryRunEnabled)
                 Game.actionManager->animationLock = animationLock;
+            appliedAnimationLocks[Game.actionManager->currentSequence] = animationLock;
 
             PluginLog.Debug($"Applying {F2MS(animationLock)} ms animation lock for {actionType} {actionID} ({id})");
         }
@@ -128,8 +130,15 @@ namespace NoClippy.Modules
                     PrintError($"Unexpected lock of {F2MS(newLock)} ms, temporary dry run has been enabled. Please disable any other programs or plugins that may be affecting the animation lock.");
                 }
 
+                var sequence = *(ushort*)(effectHeader + 0x18); // This is 0 for some special actions
                 var actionID = *(ushort*)(effectHeader + 0x1C);
-                var appliedLock = GetAnimationLock(actionID);
+
+                if (!appliedAnimationLocks.TryGetValue(sequence, out var appliedLock))
+                    appliedLock = 0.5f;
+
+                if (sequence == Game.actionManager->currentSequence)
+                    appliedAnimationLocks.Clear(); // Probably unnecessary
+
                 var lastRecordedLock = appliedLock - simulatedRTT;
 
                 if (!enableAnticheat)
