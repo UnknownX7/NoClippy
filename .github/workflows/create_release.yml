@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     uses: UnknownX7/DalamudPluginRepo/.github/workflows/reusable_create_release.yml@master
