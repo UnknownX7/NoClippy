@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
+using Dalamud.Interface;
 using Dalamud.Logging;
 using ImGuiNET;
 using static NoClippy.NoClippy;
@@ -17,6 +18,8 @@ namespace NoClippy
         public Dictionary<uint, float> AnimationLocks = new();
         public ulong TotalActionsReduced = 0ul;
         public double TotalAnimationLockReduction = 0d;
+
+        public bool TEMPNewFeatureAnnounced = false;
     }
 }
 
@@ -56,6 +59,8 @@ namespace NoClippy.Modules
         private bool enableAnticheat = false;
         private bool saveConfig = false;
         private readonly Dictionary<ushort, float> appliedAnimationLocks = new();
+
+        private bool highPingSim = false;
 
         public bool IsDryRunEnabled => enableAnticheat || Config.EnableDryRun;
 
@@ -162,6 +167,9 @@ namespace NoClippy.Modules
                 var variationMultiplier = Math.Max(rtt / average, 1) - 1;
                 var networkVariation = simulatedRTT * variationMultiplier;
 
+                if (highPingSim)
+                    correction += 0.35f * (1 + variationMultiplier);
+
                 var adjustedAnimationLock = Math.Max(oldLock + correction + networkVariation, 0);
 
                 if (!IsDryRunEnabled && float.IsFinite(adjustedAnimationLock) && adjustedAnimationLock < 10)
@@ -178,7 +186,7 @@ namespace NoClippy.Modules
                 if (!Config.EnableLogging) return;
 
                 var logString = IsDryRunEnabled ? "[DRY] " : string.Empty;
-                logString += $"Action: {actionID} {(correction > 0 ? $"({F2MS(lastRecordedLock)} > {F2MS(newLock)} ms)" : $"({F2MS(newLock)} ms)")}";
+                logString += $"Action: {actionID} {(lastRecordedLock != newLock ? $"({F2MS(lastRecordedLock)} > {F2MS(newLock)} ms)" : $"({F2MS(newLock)} ms)")}";
                 logString += $" || RTT: {F2MS(rtt)} (+{variationMultiplier:P0}) ms";
 
                 if (enableAnticheat)
@@ -213,10 +221,33 @@ namespace NoClippy.Modules
                 intervalPacketsIndex = (intervalPacketsIndex + 1) % intervalPackets.Length;
                 intervalPackets[intervalPacketsIndex] = 0;
             }
+
+            if (!Config.TEMPNewFeatureAnnounced && DalamudApi.ClientState.IsLoggedIn && !DalamudApi.Condition[ConditionFlag.InCombat] && April1)
+            {
+                DalamudApi.Framework.RunOnTick(() => PrintError("A brand new Feature of the Day has appeared!"), new TimeSpan(0, 0, 0, 5));
+                Config.TEMPNewFeatureAnnounced = true;
+            }
+
+            if (highPingSim && !April1)
+                highPingSim = false;
         }
 
         public override void DrawConfig()
         {
+            if (April1)
+            {
+                const string text = "Feature of the Day";
+                var textWidth = ImGui.CalcTextSize(text).X;
+                var indent = (float)DalamudApi.PluginInterface.LoadTimeDelta.TotalSeconds * 40 * ImGuiHelpers.GlobalScale % (ImGui.GetWindowWidth() + textWidth) - textWidth;
+                ImGui.Indent(indent);
+                ImGui.TextUnformatted(text);
+                ImGui.Unindent(indent);
+                ImGui.Checkbox(highPingSim ? "Run: High Ping" : "Run: *igh P***", ref highPingSim);
+                if (highPingSim)
+                    PluginUI.SetItemTooltip("Simulates 350 ms ping.");
+                ImGui.Separator();
+            }
+
             if (ImGui.Checkbox("Enable Animation Lock Reduction", ref Config.EnableAnimLockComp))
                 Config.Save();
             PluginUI.SetItemTooltip("Modifies the way the game handles animation lock," +
