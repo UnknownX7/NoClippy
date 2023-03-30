@@ -14,7 +14,6 @@ namespace NoClippy
         public bool PredictStatusApplications = false;
         public bool PredictMudras = false;
         public bool PredictDualcast = false;
-        public bool TEMPMudraFix = true;
     }
 }
 
@@ -410,18 +409,6 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
-            if (Game.fixGCDRecast.IsValid)
-            {
-                if (ImGui.Checkbox("Fix 6.3 Mudra Bug", ref NoClippy.Config.TEMPMudraFix))
-                {
-                    Game.fixGCDRecast.Toggle();
-                    NoClippy.Config.Save();
-                }
-                PluginUI.SetItemTooltip("Fixes an issue in 6.3 where the first mudra (or similar action) doesn't set the correct GCD timer.");
-
-                ImGui.Separator();
-            }
-
             var red = new Vector4(1, 0.25f, 0.25f, 1);
             ImGui.BeginGroup();
             TextCenter(red, "!!!!!USE AT OWN RISK!!!!!");
