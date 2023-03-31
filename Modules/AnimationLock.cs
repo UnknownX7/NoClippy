@@ -61,6 +61,7 @@ namespace NoClippy.Modules
         private readonly Dictionary<ushort, float> appliedAnimationLocks = new();
 
         private bool highPingSim = false;
+        private int simmedHighPing = 350;
 
         public bool IsDryRunEnabled => enableAnticheat || Config.EnableDryRun;
 
@@ -167,8 +168,8 @@ namespace NoClippy.Modules
                 var variationMultiplier = Math.Max(rtt / average, 1) - 1;
                 var networkVariation = simulatedRTT * variationMultiplier;
 
-                if (highPingSim)
-                    correction += 0.35f * (1 + variationMultiplier);
+                if (highPingSim && simmedHighPing > 0)
+                    correction += simmedHighPing / 1000f * (1 + variationMultiplier);
 
                 var adjustedAnimationLock = Math.Max(oldLock + correction + networkVariation, 0);
 
@@ -244,7 +245,10 @@ namespace NoClippy.Modules
                 ImGui.Unindent(indent);
                 ImGui.Checkbox(highPingSim ? "Run: High Ping" : "Run: *igh P***", ref highPingSim);
                 if (highPingSim)
-                    PluginUI.SetItemTooltip("Simulates 350 ms ping.");
+                {
+                    if (ImGui.SliderInt("##Ping", ref simmedHighPing, 50, 600, "%d ms"))
+                        simmedHighPing = Math.Min(Math.Max(simmedHighPing, 50), 600);
+                }
                 ImGui.Separator();
             }
 
