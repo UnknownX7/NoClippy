@@ -122,7 +122,7 @@ namespace NoClippy.Modules
                         break;
 
                     var statusPtr = (Status*)statusList.GetStatusAddress(i);
-                    if (IsStatusValid(statusPtr)) continue;
+                    if (!replaceableStatusIDs.Contains(statusPtr->StatusID) || IsStatusValid(statusPtr)) continue;
 
                     var status = statuses[currentIndex];
                     status.Apply(statusPtr, i);
@@ -262,6 +262,9 @@ namespace NoClippy.Modules
             //[2263] = new() { new() { id = MudraStatusID, stacks = 3, timer = 1f } }, // Jin
             [2264] = new() { new() { id = 497, beginAction = () => SwapMudras(1), endAction = () => SwapMudras(0) } }, // Kassatsu
         };
+
+        // TODO: Bandaid until rework
+        private static readonly HashSet<ushort> replaceableStatusIDs = new() { 0, 167, 496, 497, 1211, 1238, 1249, 1393, 2606 };
 
         // Length - 7 seems to be the last one with sourceID 0xE0000000?
         private static unsafe bool IsStatusValid(Status* statusPtr) => statusPtr->StatusID != 0 && (statusPtr->RemainingTime > 0 || statusPtr->SourceID is not (0 or 0xE0000000));
