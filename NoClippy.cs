@@ -12,8 +12,6 @@ namespace NoClippy
         public static NoClippy Plugin { get; private set; }
         public static Configuration Config { get; private set; }
 
-        public static bool April1 => DateTime.Now is { Month: 4, Day: 1 };
-
         public NoClippy(DalamudPluginInterface pluginInterface)
         {
             Plugin = this;

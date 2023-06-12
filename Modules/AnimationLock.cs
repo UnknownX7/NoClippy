@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
-using Dalamud.Interface;
 using Dalamud.Logging;
 using ImGuiNET;
 using static NoClippy.NoClippy;
@@ -18,8 +17,6 @@ namespace NoClippy
         public Dictionary<uint, float> AnimationLocks = new();
         public ulong TotalActionsReduced = 0ul;
         public double TotalAnimationLockReduction = 0d;
-
-        public bool TEMPNewFeatureAnnounced = false;
     }
 }
 
@@ -59,9 +56,6 @@ namespace NoClippy.Modules
         private bool enableAnticheat = false;
         private bool saveConfig = false;
         private readonly Dictionary<ushort, float> appliedAnimationLocks = new();
-
-        private bool highPingSim = false;
-        private int simmedHighPing = 350;
 
         public bool IsDryRunEnabled => enableAnticheat || Config.EnableDryRun;
 
@@ -168,9 +162,6 @@ namespace NoClippy.Modules
                 var variationMultiplier = Math.Max(rtt / average, 1) - 1;
                 var networkVariation = simulatedRTT * variationMultiplier;
 
-                if (highPingSim && simmedHighPing > 0)
-                    correction += simmedHighPing / 1000f * (1 + variationMultiplier);
-
                 var adjustedAnimationLock = Math.Max(oldLock + correction + networkVariation, 0);
 
                 if (!IsDryRunEnabled && float.IsFinite(adjustedAnimationLock) && adjustedAnimationLock < 10)
@@ -222,36 +213,10 @@ namespace NoClippy.Modules
                 intervalPacketsIndex = (intervalPacketsIndex + 1) % intervalPackets.Length;
                 intervalPackets[intervalPacketsIndex] = 0;
             }
-
-            if (!Config.TEMPNewFeatureAnnounced && DalamudApi.ClientState.IsLoggedIn && !DalamudApi.Condition[ConditionFlag.InCombat] && April1)
-            {
-                DalamudApi.Framework.RunOnTick(() => PrintError("A brand new Feature of the Day has appeared!"), new TimeSpan(0, 0, 0, 5));
-                Config.TEMPNewFeatureAnnounced = true;
-            }
-
-            if (highPingSim && !April1)
-                highPingSim = false;
         }
 
         public override void DrawConfig()
         {
-            if (April1)
-            {
-                const string text = "Feature of the Day";
-                var textWidth = ImGui.CalcTextSize(text).X;
-                var indent = (float)DalamudApi.PluginInterface.LoadTimeDelta.TotalSeconds * 40 * ImGuiHelpers.GlobalScale % (ImGui.GetWindowWidth() + textWidth) - textWidth;
-                ImGui.Indent(indent);
-                ImGui.TextUnformatted(text);
-                ImGui.Unindent(indent);
-                ImGui.Checkbox(highPingSim ? "Run: High Ping" : "Run: *igh P***", ref highPingSim);
-                if (highPingSim)
-                {
-                    if (ImGui.SliderInt("##Ping", ref simmedHighPing, 50, 600, "%d ms"))
-                        simmedHighPing = Math.Min(Math.Max(simmedHighPing, 50), 600);
-                }
-                ImGui.Separator();
-            }
-
             if (ImGui.Checkbox("Enable Animation Lock Reduction", ref Config.EnableAnimLockComp))
                 Config.Save();
             PluginUI.SetItemTooltip("Modifies the way the game handles animation lock," +
