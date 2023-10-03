@@ -1,14 +1,13 @@
 using System;
-using Dalamud.Game;
 using Dalamud.Game.Text;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 
 namespace NoClippy
 {
     public class NoClippy : IDalamudPlugin
     {
-        public string Name => "NoClippy";
         public static NoClippy Plugin { get; private set; }
         public static Configuration Config { get; private set; }
 
@@ -82,7 +81,7 @@ namespace NoClippy
             {
                 if (Config.LogChatType != XivChatType.None)
                 {
-                    DalamudApi.ChatGui.PrintChat(new XivChatEntry
+                    DalamudApi.ChatGui.Print(new XivChatEntry
                     {
                         Message = $"[NoClippy] {message}",
                         Type = Config.LogChatType
@@ -101,7 +100,7 @@ namespace NoClippy
 
         public static int F2MS(float f) => (int)Math.Round(f * 1000);
 
-        private static void Update(Framework framework) => Game.Update();
+        private static void Update(IFramework framework) => Game.Update();
 
         protected virtual void Dispose(bool disposing)
         {

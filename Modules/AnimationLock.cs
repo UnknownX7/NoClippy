@@ -77,7 +77,7 @@ namespace NoClippy.Modules
             PluginLog.Debug($"Recorded new animation lock value of {F2MS(animationLock)} ms for {actionID}");
         }
 
-        private unsafe void UseActionLocation(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param, byte ret)
+        private unsafe void UseActionLocation(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param, byte ret)
         {
             packetsSent = intervalPackets.Sum();
 

@@ -269,7 +269,7 @@ namespace NoClippy.Modules
         // Length - 7 seems to be the last one with sourceID 0xE0000000?
         private static unsafe bool IsStatusValid(Status* statusPtr) => statusPtr->StatusID != 0 && (statusPtr->RemainingTime > 0 || statusPtr->SourceID is not (0 or 0xE0000000));
 
-        private void UseActionLocation(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param, byte ret)
+        private void UseActionLocation(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param, byte ret)
         {
             if (actionType != 1 || ret == 0) return;
 

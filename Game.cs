@@ -2,6 +2,7 @@ using System;
 using Dalamud.Game.ClientState.Statuses;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
 
@@ -25,22 +26,22 @@ namespace NoClippy
             }
         }
 
-        public delegate void UseActionEventDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, nint a8, byte ret);
+        public delegate void UseActionEventDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, uint param, uint useType, int pvp, nint a8, byte ret);
         public static event UseActionEventDelegate OnUseAction;
-        private delegate byte UseActionDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, nint a8);
+        private delegate byte UseActionDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, uint param, uint useType, int pvp, nint a8);
         private static Hook<UseActionDelegate> UseActionHook;
-        private static byte UseActionDetour(nint actionManager, uint actionType, uint actionID, long targetedActorID, uint param, uint useType, int pvp, nint a8)
+        private static byte UseActionDetour(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, uint param, uint useType, int pvp, nint a8)
         {
             var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8);
             OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8, ret);
             return ret;
         }
 
-        public delegate void UseActionLocationEventDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param, byte ret);
+        public delegate void UseActionLocationEventDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param, byte ret);
         public static event UseActionLocationEventDelegate OnUseActionLocation;
-        private delegate byte UseActionLocationDelegate(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param);
+        private delegate byte UseActionLocationDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param);
         private static Hook<UseActionLocationDelegate> UseActionLocationHook;
-        private static byte UseActionLocationDetour(nint actionManager, uint actionType, uint actionID, long targetedActorID, nint vectorLocation, uint param)
+        private static byte UseActionLocationDetour(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param)
         {
             var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
             OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, ret);
@@ -107,7 +108,7 @@ namespace NoClippy
             return ret;
         }
 
-        public static event GameNetwork.OnNetworkMessageDelegate OnNetworkMessage;
+        public static event IGameNetwork.OnNetworkMessageDelegate OnNetworkMessage;
         private static void NetworkMessage(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction) =>
             OnNetworkMessage?.Invoke(dataPtr, opCode, sourceActorId, targetActorId, direction);
 
@@ -115,12 +116,12 @@ namespace NoClippy
         {
             actionManager = (Structures.ActionManager*)ActionManager.Instance();
 
-            UseActionHook = new Hook<UseActionDelegate>((nint)ActionManager.MemberFunctionPointers.UseAction, UseActionDetour);
-            UseActionLocationHook = new Hook<UseActionLocationDelegate>((nint)ActionManager.MemberFunctionPointers.UseActionLocation, UseActionLocationDetour);
-            CastBeginHook = new Hook<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 55 56 48 81 EC ?? ?? ?? ?? 48 8B EA"), CastBeginDetour); // Bad sig, found within ActorCast packet
-            CastInterruptHook = new Hook<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 8B 4B 28 8D 41 FF"), CastInterruptDetour); // Found inside ActorControl (15) packet
-            ReceiveActionEffectHook = new Hook<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
-            UpdateStatusHook = new Hook<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? FF C6 48 8D 5B 0C"), UpdateStatusDetour);
+            UseActionHook = DalamudApi.GameInteropProvider.HookFromAddress<UseActionDelegate>((nint)ActionManager.MemberFunctionPointers.UseAction, UseActionDetour);
+            UseActionLocationHook = DalamudApi.GameInteropProvider.HookFromAddress<UseActionLocationDelegate>((nint)ActionManager.MemberFunctionPointers.UseActionLocation, UseActionLocationDetour);
+            CastBeginHook = DalamudApi.GameInteropProvider.HookFromAddress<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 55 56 48 81 EC ?? ?? ?? ?? 48 8B EA"), CastBeginDetour); // Bad sig, found within ActorCast packet
+            CastInterruptHook = DalamudApi.GameInteropProvider.HookFromAddress<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 8B 4B 28 8D 41 FF"), CastInterruptDetour); // Found inside ActorControl (15) packet
+            ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
+            UpdateStatusHook = DalamudApi.GameInteropProvider.HookFromAddress<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? FF C6 48 8D 5B 0C"), UpdateStatusDetour);
 
             getSpellIDForAction = (delegate* unmanaged<uint, uint, uint>)DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 44 8B 4B 2C");
 
