@@ -12,13 +12,10 @@ namespace NoClippy
     {
         public static Structures.ActionManager* actionManager;
 
-        private static delegate* unmanaged<uint, uint, uint> getSpellIDForAction;
-        public static uint GetSpellIDForAction(uint type, uint id) => getSpellIDForAction(type, id);
-
         private static nint defaultClientAnimationLockPtr;
         public static float DefaultClientAnimationLock
         {
-            get => *(float*)defaultClientAnimationLockPtr;
+            get => 0.5f;
             set
             {
                 if (defaultClientAnimationLockPtr != nint.Zero)
@@ -55,20 +52,20 @@ namespace NoClippy
         private static void CastBeginDetour(ulong objectID, nint packetData)
         {
             CastBeginHook.Original(objectID, packetData);
-            if (objectID != DalamudApi.ClientState.LocalPlayer?.ObjectId) return;
+            if (objectID != DalamudApi.ClientState.LocalPlayer?.GameObjectId) return;
             OnCastBegin?.Invoke(objectID, packetData);
             invokeCastInterrupt = true;
         }
 
         // Seems to always be called twice?
-        public delegate void CastInterruptDelegate(nint actionManager, uint actionType, uint actionID);
+        public delegate void CastInterruptDelegate(nint actionManager);
         public static event CastInterruptDelegate OnCastInterrupt;
         private static Hook<CastInterruptDelegate> CastInterruptHook;
-        private static void CastInterruptDetour(nint actionManager, uint actionType, uint actionID)
+        private static void CastInterruptDetour(nint actionManager)
         {
-            CastInterruptHook.Original(actionManager, actionType, actionID);
+            CastInterruptHook.Original(actionManager);
             if (!invokeCastInterrupt) return;
-            OnCastInterrupt?.Invoke(actionManager, actionType, actionID);
+            OnCastInterrupt?.Invoke(actionManager);
             invokeCastInterrupt = false;
         }
 
@@ -91,8 +88,8 @@ namespace NoClippy
         private static byte UpdateStatusDetour(nint statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
         {
             var statusPtr = (Status*)(statusList + 0x8 + 0xC * slot);
-            var oldStatusID = statusPtr->StatusID;
-            var oldSourceID = statusPtr->SourceID;
+            var oldStatusID = statusPtr->StatusId;
+            var oldSourceID = statusPtr->SourceId;
             var ret = UpdateStatusHook.Original(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
 
             if (DalamudApi.ClientState.LocalPlayer is not { } p || statusList.ToInt64() != p.StatusList.Address.ToInt64()) return ret;
@@ -118,17 +115,14 @@ namespace NoClippy
 
             UseActionHook = DalamudApi.GameInteropProvider.HookFromAddress<UseActionDelegate>((nint)ActionManager.MemberFunctionPointers.UseAction, UseActionDetour);
             UseActionLocationHook = DalamudApi.GameInteropProvider.HookFromAddress<UseActionLocationDelegate>((nint)ActionManager.MemberFunctionPointers.UseActionLocation, UseActionLocationDetour);
-            CastBeginHook = DalamudApi.GameInteropProvider.HookFromAddress<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 55 56 48 81 EC ?? ?? ?? ?? 48 8B EA"), CastBeginDetour); // Bad sig, found within ActorCast packet
-            CastInterruptHook = DalamudApi.GameInteropProvider.HookFromAddress<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 8B 4B 28 8D 41 FF"), CastInterruptDetour); // Found inside ActorControl (15) packet
-            ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B 8D F0 03 00 00"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
+            CastBeginHook = DalamudApi.GameInteropProvider.HookFromAddress<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 56 41 56 48 81 EC ?? ?? ?? ?? 48 8B F2"), CastBeginDetour); // Bad sig, found within ActorCast packet
+            CastInterruptHook = DalamudApi.GameInteropProvider.HookFromAddress<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? EB 6A 41 8B D6"), CastInterruptDetour);
+            ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanModule("40 55 56 57 41 54 41 55 41 56 48 8D AC 24"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
             UpdateStatusHook = DalamudApi.GameInteropProvider.HookFromAddress<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? FF C6 48 8D 5B 0C"), UpdateStatusDetour);
-
-            getSpellIDForAction = (delegate* unmanaged<uint, uint, uint>)DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 44 8B 4B 2C");
-
-            defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("33 33 B3 3E ?? ?? ?? ?? ?? ?? 00 00 00 3F") + 0xA;
+            //defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("F3 0F 10 05 ?? ?? ?? ?? 41 8B D5"); // TODO: Changed to static address
 
             // This is normally 0.5f, but I'm increasing it to prevent any weird discrepancies on high ping
-            DefaultClientAnimationLock = 0.6f;
+            //DefaultClientAnimationLock = 0.6f;
 
             DalamudApi.GameNetwork.NetworkMessage += NetworkMessage;
 
@@ -137,7 +131,7 @@ namespace NoClippy
             CastBeginHook.Enable();
             CastInterruptHook.Enable();
             ReceiveActionEffectHook.Enable();
-            UpdateStatusHook.Enable();
+            //UpdateStatusHook.Enable();
         }
 
         public static event Action OnUpdate;
@@ -163,7 +157,7 @@ namespace NoClippy
 
             OnUpdate = null;
 
-            DefaultClientAnimationLock = 0.5f;
+            //DefaultClientAnimationLock = 0.5f;
         }
     }
 }

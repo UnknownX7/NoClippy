@@ -2,9 +2,8 @@
 using System.Diagnostics;
 using System.Numerics;
 using Dalamud.Interface;
-using Dalamud.Interface.Internal.Notifications;
+using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Utility;
-using Dalamud.Logging;
 using ImGuiNET;
 
 namespace NoClippy
@@ -64,7 +63,7 @@ namespace NoClippy
                 if (ImGui.IsMouseReleased(options.MouseButton))
                     pressed = true;
                 if (options.ToastTooltipOnClick && ImGui.IsMouseReleased(options.ToastTooltipOnClickButton))
-                    DalamudApi.PluginInterface.UiBuilder.AddNotification(options.Tooltip!, null, NotificationType.Info);
+                    DalamudApi.ShowNotification(options.Tooltip!, NotificationType.Info);
             }
 
             ImGui.SetCursorPos(buttonPos);
@@ -99,7 +98,7 @@ namespace NoClippy
             }
             catch (Exception e)
             {
-                PluginLog.Error(e, "Failed to start process!");
+                DalamudApi.LogError("Failed to start process!", e);
                 return false;
             }
 

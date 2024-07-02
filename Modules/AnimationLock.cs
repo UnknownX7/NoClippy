@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
-using Dalamud.Logging;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using ImGuiNET;
 using static NoClippy.NoClippy;
 
@@ -74,7 +74,7 @@ namespace NoClippy.Modules
             if (Config.AnimationLocks.TryGetValue(actionID, out var oldLock) && oldLock == animationLock) return;
             Config.AnimationLocks[actionID] = animationLock;
             Config.Save();
-            PluginLog.Debug($"Recorded new animation lock value of {F2MS(animationLock)} ms for {actionID}");
+            DalamudApi.LogDebug($"Recorded new animation lock value of {F2MS(animationLock)} ms for {actionID}");
         }
 
         private unsafe void UseActionLocation(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param, byte ret)
@@ -83,17 +83,17 @@ namespace NoClippy.Modules
 
             if (Game.actionManager->animationLock != Game.DefaultClientAnimationLock) return;
 
-            var id = Game.GetSpellIDForAction(actionType, actionID);
+            var id = ActionManager.GetSpellIdForAction((ActionType)actionType, actionID);
             var animationLock = GetAnimationLock(id);
             if (!IsDryRunEnabled)
                 Game.actionManager->animationLock = animationLock;
             appliedAnimationLocks[Game.actionManager->currentSequence] = animationLock;
 
-            PluginLog.Debug($"Applying {F2MS(animationLock)} ms animation lock for {actionType} {actionID} ({id})");
+            DalamudApi.LogDebug($"Applying {F2MS(animationLock)} ms animation lock for {actionType} {actionID} ({id})");
         }
 
         private void CastBegin(ulong objectID, nint packetData) => isCasting = true;
-        private void CastInterrupt(nint actionManager, uint actionType, uint actionID) => isCasting = false;
+        private void CastInterrupt(nint actionManager) => isCasting = false;
 
         private unsafe void ReceiveActionEffect(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail, float oldLock, float newLock)
         {

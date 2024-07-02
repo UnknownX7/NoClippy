@@ -1,6 +1,5 @@
 using System;
 using Dalamud.Game.Text;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 
@@ -11,7 +10,7 @@ namespace NoClippy
         public static NoClippy Plugin { get; private set; }
         public static Configuration Config { get; private set; }
 
-        public NoClippy(DalamudPluginInterface pluginInterface)
+        public NoClippy(IDalamudPluginInterface pluginInterface)
         {
             Plugin = this;
             DalamudApi.Initialize(this, pluginInterface);
@@ -32,7 +31,7 @@ namespace NoClippy
             catch (Exception e)
             {
                 PrintError("Failed to load!");
-                PluginLog.LogError(e.ToString());
+                DalamudApi.LogError(e.ToString());
             }
         }
 
@@ -94,7 +93,7 @@ namespace NoClippy
             }
             else
             {
-                PluginLog.LogInformation(message);
+                DalamudApi.LogInfo(message);
             }
         }
 

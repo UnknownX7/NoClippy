@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Dalamud.Logging;
 using ImGuiNET;
 
 namespace NoClippy.Modules
@@ -29,11 +28,11 @@ namespace NoClippy.Modules
                     try
                     {
                         module.Enable();
-                        PluginLog.LogInformation($"Loaded module: {module.GetType()}");
+                        DalamudApi.LogInfo($"Loaded module: {module.GetType()}");
                     }
                     catch (Exception e)
                     {
-                        PluginLog.LogError($"Failed loading module: {module.GetType()}\n{e}");
+                        DalamudApi.LogError($"Failed loading module: {module.GetType()}\n{e}");
                         module.IsEnabled = false;
                     }
                 }
@@ -58,12 +57,12 @@ namespace NoClippy.Modules
                     if (module.IsEnabled)
                     {
                         module.Enable();
-                        PluginLog.LogInformation($"Enabled module: {module.GetType()}");
+                        DalamudApi.LogInfo($"Enabled module: {module.GetType()}");
                     }
                     else
                     {
                         module.Disable();
-                        PluginLog.LogInformation($"Disabled module: {module.GetType()}");
+                        DalamudApi.LogInfo($"Disabled module: {module.GetType()}");
                     }
 
                     info.isEnabled = module.IsEnabled;

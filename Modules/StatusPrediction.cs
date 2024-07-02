@@ -32,11 +32,12 @@ namespace NoClippy.Modules
             [FieldOffset(0x8)] public uint SourceID;
         }
 
-        public override bool IsEnabled
+        /*public override bool IsEnabled
         {
             get => NoClippy.Config.PredictStatusApplications || NoClippy.Config.PredictMudras || NoClippy.Config.PredictDualcast;
             set => NoClippy.Config.PredictStatusApplications = NoClippy.Config.PredictMudras = NoClippy.Config.PredictDualcast = value;
-        }
+        }*/
+        public override bool IsEnabled => false;
 
         public override int DrawOrder => 15;
 
@@ -378,7 +379,7 @@ namespace NoClippy.Modules
             //inPVP = actionID is 8883 or 8885 or 10025 or 17727; // TODO fix this
         }
 
-        private void CastInterrupt(nint actionManager, uint actionType, uint actionID)
+        private void CastInterrupt(nint actionManager)
         {
             if (!predictDualcast) return;
             predictedStatusList.Remove(dualCast);
@@ -414,10 +415,12 @@ namespace NoClippy.Modules
         {
             var red = new Vector4(1, 0.25f, 0.25f, 1);
             ImGui.BeginGroup();
+            TextCenter(Vector4.One, "Sorry! Temporarily disabled for Dawntrail.");
             TextCenter(red, "!!!!!USE AT OWN RISK!!!!!");
             TextCenter(red, "Experimental prediction settings.");
             ImGui.Dummy(new Vector2(1000, 8));
             ImGui.EndGroup();
+            ImGui.BeginDisabled();
             PluginUI.SetItemTooltip("This is a very early attempt at fixing a major problem with status effects and certain skills." +
                 "\nThe server should decline invalid attempts, but these settings could cause more invalid packets than usual.");
 
@@ -442,6 +445,7 @@ namespace NoClippy.Modules
                 "\nWarning: Can easily desync with extremely high lag and slidecasting too early.");
 
             ImGui.Columns(1);
+            ImGui.EndDisabled();
         }
 
         public override void Enable()
