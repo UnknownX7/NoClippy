@@ -200,7 +200,7 @@ namespace NoClippy.Modules
 
         private void Update()
         {
-            if (saveConfig && !DalamudApi.Condition[ConditionFlag.InCombat])
+            if (saveConfig && DalamudApi.Condition[ConditionFlag.BetweenAreas])
             {
                 Config.Save();
                 saveConfig = false;
