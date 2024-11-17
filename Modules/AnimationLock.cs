@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -69,11 +70,11 @@ namespace NoClippy.Modules
                 : animationLock)
             + simulatedRTT;
 
-        private static void UpdateDatabase(uint actionID, float animationLock)
+        private void UpdateDatabase(uint actionID, float animationLock)
         {
             if (Config.AnimationLocks.TryGetValue(actionID, out var oldLock) && oldLock == animationLock) return;
             Config.AnimationLocks[actionID] = animationLock;
-            Config.Save();
+            saveConfig = true;
             DalamudApi.LogDebug($"Recorded new animation lock value of {F2MS(animationLock)} ms for {actionID}");
         }
 
@@ -86,8 +87,10 @@ namespace NoClippy.Modules
             var id = ActionManager.GetSpellIdForAction((ActionType)actionType, actionID);
             var animationLock = GetAnimationLock(id);
             if (!IsDryRunEnabled)
+            {
                 Game.actionManager->animationLock = animationLock;
-            appliedAnimationLocks[Game.actionManager->currentSequence] = animationLock;
+                appliedAnimationLocks[Game.actionManager->currentSequence] = animationLock;
+            }
 
             DalamudApi.LogDebug($"Applying {F2MS(animationLock)} ms animation lock for {actionType} {actionID} ({id})");
         }
@@ -132,14 +135,12 @@ namespace NoClippy.Modules
 
                 var sequence = *(ushort*)(effectHeader + 0x18); // This is 0 for some special actions
                 var actionID = *(ushort*)(effectHeader + 0x1C);
-
-                if (!appliedAnimationLocks.TryGetValue(sequence, out var appliedLock))
-                    appliedLock = 0.5f;
+                var appliedLock = appliedAnimationLocks.GetValueOrDefault(sequence, 0.5f);
 
                 if (sequence == Game.actionManager->currentSequence)
                     appliedAnimationLocks.Clear(); // Probably unnecessary
 
-                var lastRecordedLock = appliedLock - simulatedRTT;
+                var lastRecordedLock = IsDryRunEnabled ? newLock : appliedLock - simulatedRTT;
 
                 if (!enableAnticheat)
                     UpdateDatabase(actionID, newLock);
@@ -177,17 +178,20 @@ namespace NoClippy.Modules
 
                 if (!Config.EnableLogging) return;
 
-                var logString = IsDryRunEnabled ? "[DRY] " : string.Empty;
-                logString += $"Action: {actionID} {(lastRecordedLock != newLock ? $"({F2MS(lastRecordedLock)} > {F2MS(newLock)} ms)" : $"({F2MS(newLock)} ms)")}";
-                logString += $" || RTT: {F2MS(rtt)} (+{variationMultiplier:P0}) ms";
+                var sb = new StringBuilder(IsDryRunEnabled ? "[DRY] " : string.Empty)
+                        .Append($"Action: {actionID} ")
+                        .Append(lastRecordedLock != newLock ? $"({F2MS(lastRecordedLock)} > {F2MS(newLock)} ms)" : $"({F2MS(newLock)} ms)")
+                        .Append($" || RTT: {F2MS(rtt)} (+{variationMultiplier:P0}) ms");
 
                 if (enableAnticheat)
-                    logString += $" [Alexander: {F2MS(rtt - (lastRecordedLock - newLock))} ms]";
+                    sb.Append($" [Alexander: {F2MS(rtt - (appliedLock - simulatedRTT - newLock))} ms]");
 
-                logString += $" || Lock: {F2MS(oldLock)} > {F2MS(adjustedAnimationLock)} ({F2MS(correction + networkVariation):+0;-#}) ms";
-                logString += $" || Packets: {packetsSent}";
+                if (!IsDryRunEnabled)
+                    sb.Append($" || Lock: {F2MS(oldLock)} > {F2MS(adjustedAnimationLock)} ({F2MS(correction + networkVariation):+0;-#}) ms");
 
-                PrintLog(logString);
+                sb.Append($" || Packets: {packetsSent}");
+
+                PrintLog(sb.ToString());
             }
             catch { PrintError("Error in AnimationLock Module"); }
         }
