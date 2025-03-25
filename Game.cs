@@ -12,16 +12,7 @@ namespace NoClippy
     {
         public static Structures.ActionManager* actionManager;
 
-        private static nint defaultClientAnimationLockPtr;
-        public static float DefaultClientAnimationLock
-        {
-            get => 0.5f;
-            set
-            {
-                if (defaultClientAnimationLockPtr != nint.Zero)
-                    SafeMemory.WriteBytes(defaultClientAnimationLockPtr, BitConverter.GetBytes(value));
-            }
-        }
+        public const float DefaultClientAnimationLock = 0.5f;
 
         public delegate void UseActionEventDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, uint param, uint useType, int pvp, nint a8, byte ret);
         public static event UseActionEventDelegate OnUseAction;
@@ -117,13 +108,9 @@ namespace NoClippy
             UseActionLocationHook = DalamudApi.GameInteropProvider.HookFromAddress<UseActionLocationDelegate>((nint)ActionManager.MemberFunctionPointers.UseActionLocation, UseActionLocationDetour);
             CastBeginHook = DalamudApi.GameInteropProvider.HookFromAddress<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 56 41 56 48 81 EC ?? ?? ?? ?? 48 8B F2"), CastBeginDetour); // Bad sig, found within ActorCast packet
             CastInterruptHook = DalamudApi.GameInteropProvider.HookFromAddress<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? EB 6A 41 8B D6"), CastInterruptDetour);
-            ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanModule("40 55 56 57 41 54 41 55 41 56 48 8D AC 24"), ReceiveActionEffectDetour); // 4C 89 44 24 18 53 56 57 41 54 41 57 48 81 EC ?? 00 00 00 8B F9
+            ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanModule("40 55 53 56 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70 "), ReceiveActionEffectDetour);
             UpdateStatusHook = DalamudApi.GameInteropProvider.HookFromAddress<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? FF C6 48 8D 5B 0C"), UpdateStatusDetour);
-            //defaultClientAnimationLockPtr = DalamudApi.SigScanner.ScanModule("F3 0F 10 05 ?? ?? ?? ?? 41 8B D5"); // TODO: Changed to static address
-
-            // This is normally 0.5f, but I'm increasing it to prevent any weird discrepancies on high ping
-            //DefaultClientAnimationLock = 0.6f;
-
+            
             DalamudApi.GameNetwork.NetworkMessage += NetworkMessage;
 
             UseActionHook.Enable();
