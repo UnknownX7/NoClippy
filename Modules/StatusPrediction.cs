@@ -5,7 +5,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Statuses;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace NoClippy
 {
@@ -424,7 +424,7 @@ namespace NoClippy.Modules
             PluginUI.SetItemTooltip("This is a very early attempt at fixing a major problem with status effects and certain skills." +
                 "\nThe server should decline invalid attempts, but these settings could cause more invalid packets than usual.");
 
-            ImGui.Columns(2, null, false);
+            ImGui.Columns(2, "Columns", false);
 
             if (ImGui.Checkbox("Predict Statuses", ref NoClippy.Config.PredictStatusApplications))
                 NoClippy.Config.Save();

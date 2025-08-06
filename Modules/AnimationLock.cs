@@ -5,7 +5,7 @@ using System.Text;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using static NoClippy.NoClippy;
 
 namespace NoClippy
@@ -228,7 +228,7 @@ namespace NoClippy.Modules
 
             if (Config.EnableAnimLockComp)
             {
-                ImGui.Columns(2, null, false);
+                ImGui.Columns(2, "AnimlockColumns", false);
 
                 if (ImGui.Checkbox("Enable Logging", ref Config.EnableLogging))
                     Config.Save();
@@ -256,8 +256,8 @@ namespace NoClippy.Modules
             Game.OnCastBegin += CastBegin;
             Game.OnCastInterrupt += CastInterrupt;
             Game.OnReceiveActionEffect += ReceiveActionEffect;
-            Game.OnNetworkMessage += NetworkMessage;
             Game.OnUpdate += Update;
+            Game.OnNetworkMessageDelegate += NetworkMessage;
         }
 
         public override void Disable()
@@ -266,8 +266,8 @@ namespace NoClippy.Modules
             Game.OnCastBegin -= CastBegin;
             Game.OnCastInterrupt -= CastInterrupt;
             Game.OnReceiveActionEffect -= ReceiveActionEffect;
-            Game.OnNetworkMessage -= NetworkMessage;
             Game.OnUpdate -= Update;
+            Game.OnNetworkMessageDelegate -= NetworkMessage;
         }
     }
 }
