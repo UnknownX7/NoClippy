@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Statuses;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
@@ -76,10 +77,6 @@ namespace NoClippy
         private delegate byte UpdateStatusDelegate(nint status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
         private static Hook<UpdateStatusDelegate> UpdateStatusHook;
 
-        public delegate void NetworkMessageDelegate(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction);
-        public static event NetworkMessageDelegate OnNetworkMessageDelegate;
-        private static Hook<NetworkMessageDelegate> ProcessZonePacketUpHook;
-
         private static byte UpdateStatusDetour(nint statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
         {
             var statusPtr = (Status*)(statusList + 0x8 + 0xC * slot);
@@ -100,9 +97,22 @@ namespace NoClippy
             return ret;
         }
 
+        private delegate byte ProcessZonePacketUpDelegate(IntPtr a1, IntPtr dataPtr, IntPtr a3, byte a4);
+        private static Hook<ProcessZonePacketUpDelegate> ProcessZonePacketUpHook;
 
-        private static void NetworkMessageDetour(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction) {
-            ProcessZonePacketUpHook.Original(dataPtr, opCode, sourceActorId, targetActorId, direction);
+        public delegate void NetworkMessageEventDelegate(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction);
+        public static event NetworkMessageEventDelegate OnNetworkMessageDelegate;
+
+
+        private static byte NetworkMessageDetour(IntPtr a1, IntPtr dataPtr, IntPtr a3, byte a4)
+        {
+            // Extract opCode and other info as needed
+            ushort opCode = (ushort)Marshal.ReadInt16(dataPtr);
+            // TODO: Extract sourceActorId/targetActorId if needed
+
+            OnNetworkMessageDelegate?.Invoke(dataPtr, opCode, 0, 0, NetworkMessageDirection.ZoneUp);
+
+            return ProcessZonePacketUpHook.Original(a1, dataPtr, a3, a4);
         }
 
         public static void Initialize()
@@ -115,14 +125,14 @@ namespace NoClippy
             CastInterruptHook = DalamudApi.GameInteropProvider.HookFromAddress<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("48 8B C4 48 83 EC 48 48 89 58 08"), CastInterruptDetour);
             ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanModule("40 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24"), ReceiveActionEffectDetour);
             UpdateStatusHook = DalamudApi.GameInteropProvider.HookFromAddress<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 40 0A F0 48 8D 5B"), UpdateStatusDetour);
-            ProcessZonePacketUpHook = DalamudApi.GameInteropProvider.HookFromAddress<NetworkMessageDelegate>(DalamudApi.SigScanner.ScanText("48 89 5C 24 ?? 48 89 74 24 ?? 4C 89 64 24 ?? 55 41 56 41 57 48 8B EC 48 83 EC 70"), NetworkMessageDetour);
+            ProcessZonePacketUpHook = DalamudApi.GameInteropProvider.HookFromAddress<ProcessZonePacketUpDelegate>(DalamudApi.SigScanner.ScanText("48 89 5C 24 ?? 48 89 74 24 ?? 4C 89 64 24 ?? 55 41 56 41 57 48 8B EC 48 83 EC 70"), NetworkMessageDetour);
 
             UseActionHook.Enable();
             UseActionLocationHook.Enable();
             CastBeginHook.Enable();
             CastInterruptHook.Enable();
             ReceiveActionEffectHook.Enable();
-            //ProcessZonePacketUpHook.Enable();
+            ProcessZonePacketUpHook.Enable();
             //UpdateStatusHook.Enable();
         }
 
