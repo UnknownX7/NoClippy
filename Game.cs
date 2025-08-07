@@ -29,11 +29,11 @@ namespace NoClippy
 
         public delegate void UseActionLocationEventDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param, byte ret);
         public static event UseActionLocationEventDelegate OnUseActionLocation;
-        private delegate byte UseActionLocationDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param);
+        private delegate byte UseActionLocationDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param, byte c);
         private static Hook<UseActionLocationDelegate> UseActionLocationHook;
-        private static byte UseActionLocationDetour(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param)
+        private static byte UseActionLocationDetour(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, nint vectorLocation, uint param, byte c)
         {
-            var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param);
+            var ret =  UseActionLocationHook.Original(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, c);
             OnUseActionLocation?.Invoke(actionManager, actionType, actionID, targetedActorID, vectorLocation, param, ret);
             return ret;
         }
