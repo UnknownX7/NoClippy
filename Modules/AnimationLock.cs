@@ -196,7 +196,7 @@ namespace NoClippy.Modules
             catch { PrintError("Error in AnimationLock Module"); }
         }
 
-        private void NetworkMessage(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction)
+        private void NetworkMessage(NetworkMessageDirection direction)
         {
             if (direction != NetworkMessageDirection.ZoneUp) return;
             intervalPackets[intervalPacketsIndex]++;

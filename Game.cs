@@ -5,6 +5,7 @@ using Dalamud.Game.Network;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Network;
 using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
 
 namespace NoClippy
@@ -97,20 +98,17 @@ namespace NoClippy
             return ret;
         }
 
+        [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
         private delegate byte ProcessZonePacketUpDelegate(IntPtr a1, IntPtr dataPtr, IntPtr a3, byte a4);
         private static Hook<ProcessZonePacketUpDelegate> ProcessZonePacketUpHook;
 
-        public delegate void NetworkMessageEventDelegate(nint dataPtr, ushort opCode, uint sourceActorId, uint targetActorId, NetworkMessageDirection direction);
+        public delegate void NetworkMessageEventDelegate(NetworkMessageDirection direction);
         public static event NetworkMessageEventDelegate OnNetworkMessageDelegate;
 
 
         private static byte NetworkMessageDetour(IntPtr a1, IntPtr dataPtr, IntPtr a3, byte a4)
         {
-            // Extract opCode and other info as needed
-            ushort opCode = (ushort)Marshal.ReadInt16(dataPtr);
-            // TODO: Extract sourceActorId/targetActorId if needed
-
-            OnNetworkMessageDelegate?.Invoke(dataPtr, opCode, 0, 0, NetworkMessageDirection.ZoneUp);
+            OnNetworkMessageDelegate?.Invoke(NetworkMessageDirection.ZoneUp);
 
             return ProcessZonePacketUpHook.Original(a1, dataPtr, a3, a4);
         }
