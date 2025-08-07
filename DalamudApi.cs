@@ -40,9 +40,6 @@ public class DalamudApi
     public static IGameInteropProvider GameInteropProvider { get; private set; }
 
     [PluginService]
-    public static IGameNetwork GameNetwork { get; private set; }
-
-    [PluginService]
     public static INotificationManager NotificationManager { get; private set; }
 
     [PluginService]

@@ -1,6 +1,6 @@
 using System;
 using Dalamud.Game.Text;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace NoClippy
 {

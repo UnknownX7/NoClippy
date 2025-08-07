@@ -1,6 +1,6 @@
 using System;
 using Dalamud.Game.ClientState.Conditions;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace NoClippy
 {
@@ -94,7 +94,7 @@ namespace NoClippy.Modules
 
         public override void DrawConfig()
         {
-            ImGui.Columns(2, null, false);
+            ImGui.Columns(2, "EncounterColumns", false);
 
             if (ImGui.Checkbox("Enable Encounter Stats", ref NoClippy.Config.EnableEncounterStats))
                 NoClippy.Config.Save();
