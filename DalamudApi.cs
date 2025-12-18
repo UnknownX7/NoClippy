@@ -42,6 +42,10 @@ public class DalamudApi
     [PluginService]
     public static INotificationManager NotificationManager { get; private set; }
 
+
+    [PluginService]
+    public static IObjectTable ObjectTable { get; private set; }
+
     [PluginService]
     public static IPluginLog PluginLog { get; private set; }
 

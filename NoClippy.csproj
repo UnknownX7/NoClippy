@@ -1,7 +1,7 @@
-<Project Sdk="Dalamud.NET.Sdk/13.0.0">
+<Project Sdk="Dalamud.NET.SDK/14.0.0">
 
     <PropertyGroup>
-        <Version>0.5.0.19</Version>
+        <Version>0.5.0.20</Version>
         <Nullable>disable</Nullable>
     </PropertyGroup>
 
