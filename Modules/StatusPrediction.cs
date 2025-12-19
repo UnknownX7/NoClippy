@@ -47,7 +47,7 @@ namespace NoClippy.Modules
 
             public PredictedStatus Add(ushort statusID = 0, byte stacks = 0, byte param = 0, bool replace = false, float timer = 0.75f, Action endAction = null)
             {
-                var statusList = DalamudApi.ClientState.LocalPlayer!.StatusList;
+                var statusList = DalamudApi.ObjectTable.LocalPlayer!.StatusList;
 
                 int prev;
 
@@ -87,7 +87,7 @@ namespace NoClippy.Modules
 
             public void Update(float dt)
             {
-                var statusList = DalamudApi.ClientState.LocalPlayer?.StatusList;
+                var statusList = DalamudApi.ObjectTable.LocalPlayer?.StatusList;
                 var exists = statusList != null;
 
                 for (int i = statuses.Count - 1; i >= 0; i--)
@@ -160,14 +160,14 @@ namespace NoClippy.Modules
                 }
 
                 if (reapply)
-                    Apply(DalamudApi.ClientState.LocalPlayer!.StatusList);
+                    Apply(DalamudApi.ObjectTable.LocalPlayer!.StatusList);
             }
 
             public bool Remove(PredictedStatus status)
             {
                 var removed = statuses.Remove(status);
 
-                if (removed && DalamudApi.ClientState.LocalPlayer?.StatusList is { } statusList)
+                if (removed && DalamudApi.ObjectTable.LocalPlayer?.StatusList is { } statusList)
                 {
                     status.TryRemove(statusList);
                     status.endAction?.Invoke();
@@ -291,7 +291,7 @@ namespace NoClippy.Modules
                     status.beginAction?.Invoke();
             }
 
-            predictedStatusList.Apply(DalamudApi.ClientState.LocalPlayer!.StatusList);
+            predictedStatusList.Apply(DalamudApi.ObjectTable.LocalPlayer!.StatusList);
         }
 
         private void PredictMudras(uint actionID)
@@ -317,7 +317,7 @@ namespace NoClippy.Modules
         {
             var mudraStacks = 0;
 
-            var statusList = DalamudApi.ClientState.LocalPlayer!.StatusList;
+            var statusList = DalamudApi.ObjectTable.LocalPlayer!.StatusList;
             for (int i = 0; i < statusList.Length; i++)
             {
                 var statusPtr = (Status*)statusList.GetStatusAddress(i);
@@ -353,7 +353,7 @@ namespace NoClippy.Modules
 
         private unsafe void UpdateDualcast()
         {
-            var statusList = DalamudApi.ClientState.LocalPlayer?.StatusList;
+            var statusList = DalamudApi.ObjectTable.LocalPlayer?.StatusList;
             if (statusList == null)
             {
                 predictDualcast = false;
@@ -369,7 +369,7 @@ namespace NoClippy.Modules
 
         private unsafe void CastBegin(ulong objectID, nint packetData)
         {
-            if (!NoClippy.Config.PredictDualcast || DalamudApi.ClientState.LocalPlayer?.ClassJob.RowId != 35 || *(byte*)(packetData + 2) != 1) return;
+            if (!NoClippy.Config.PredictDualcast || DalamudApi.ObjectTable.LocalPlayer?.ClassJob.RowId != 35 || *(byte*)(packetData + 2) != 1) return;
 
             var actionID = *(ushort*)packetData;
             if (actionID < 9) return; // Special actions

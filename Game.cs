@@ -45,7 +45,7 @@ namespace NoClippy
         private static void CastBeginDetour(ulong objectID, nint packetData)
         {
             CastBeginHook.Original(objectID, packetData);
-            if (objectID != DalamudApi.ClientState.LocalPlayer?.GameObjectId) return;
+            if (objectID != DalamudApi.ObjectTable.LocalPlayer?.GameObjectId) return;
             OnCastBegin?.Invoke(objectID, packetData);
             invokeCastInterrupt = true;
         }
@@ -85,7 +85,7 @@ namespace NoClippy
             var oldSourceID = statusPtr->SourceObject.ObjectId;
             var ret = UpdateStatusHook.Original(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
 
-            if (DalamudApi.ClientState.LocalPlayer is not { } p || statusList.ToInt64() != p.StatusList.Address.ToInt64()) return ret;
+            if (DalamudApi.ObjectTable.LocalPlayer is not { } p || statusList.ToInt64() != p.StatusList.Address.ToInt64()) return ret;
 
             //OnUpdateStatus?.Invoke(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
 
