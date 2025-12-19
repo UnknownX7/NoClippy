@@ -14,5 +14,6 @@
   ],
   "InternalName": "NoClippy",
   "AssemblyVersion": "9.9.9.9",
-  "Changelog": "Fixed for 7.3 (Thanks to Zeffuro)"
+  "DalamudApiLevel": 14,
+  "Changelog": "Updated for API14"
 }

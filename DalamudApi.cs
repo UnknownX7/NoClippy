@@ -51,6 +51,9 @@ public class DalamudApi
     [PluginService]
     public static IToastGui ToastGui { get; private set; }
 
+    [PluginService]
+    public static IObjectTable ObjectTable { get; private set; }
+
     private static PluginCommandManager<IDalamudPlugin> pluginCommandManager;
     private const string printName = "NoClippy";
     private const string printHeader = $"[{printName}] ";
