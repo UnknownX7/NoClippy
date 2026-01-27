@@ -4,6 +4,7 @@ using Dalamud.Game.ClientState.Statuses;
 using Dalamud.Game.Network;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Application.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Network;
 using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
@@ -122,7 +123,7 @@ namespace NoClippy
             CastInterruptHook = DalamudApi.GameInteropProvider.HookFromAddress<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("48 8B C4 48 83 EC 48 48 89 58 08"), CastInterruptDetour);
             ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanModule("40 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24"), ReceiveActionEffectDetour);
             UpdateStatusHook = DalamudApi.GameInteropProvider.HookFromAddress<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 40 0A F0 48 8D 5B"), UpdateStatusDetour);
-            SendPacketHook = DalamudApi.GameInteropProvider.HookFromAddress<SendPacketDelegate>((nint)FFXIVClientStructs.FFXIV.Application.Network.ZoneClient.MemberFunctionPointers.SendPacket, SendPacketDetour);
+            SendPacketHook = DalamudApi.GameInteropProvider.HookFromAddress<SendPacketDelegate>((nint)ZoneClient.MemberFunctionPointers.SendPacket, SendPacketDetour);
 
             UseActionHook.Enable();
             UseActionLocationHook.Enable();
