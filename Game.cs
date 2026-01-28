@@ -1,13 +1,10 @@
 using System;
-using System.Runtime.InteropServices;
-using Dalamud.Game.ClientState.Statuses;
-using Dalamud.Game.Network;
+using System.Numerics;
 using Dalamud.Hooking;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Application.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using FFXIVClientStructs.FFXIV.Client.Network;
-using Status = FFXIVClientStructs.FFXIV.Client.Game.Status;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 
 namespace NoClippy
 {
@@ -17,14 +14,15 @@ namespace NoClippy
 
         public const float DefaultClientAnimationLock = 0.5f;
 
-        public delegate void UseActionEventDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, uint param, uint useType, int pvp, nint a8, byte ret);
+        public delegate void UseActionEventDelegate(ActionManager* actionManager, ActionType actionType, uint actionId, ulong targetId, uint extraParam, ActionManager.UseActionMode mode, uint comboRouteId, bool* outOptAreaTargeted, bool ret);
         public static event UseActionEventDelegate OnUseAction;
-        private delegate byte UseActionDelegate(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, uint param, uint useType, int pvp, nint a8);
-        private static Hook<UseActionDelegate> UseActionHook;
-        private static byte UseActionDetour(nint actionManager, uint actionType, uint actionID, ulong targetedActorID, uint param, uint useType, int pvp, nint a8)
+
+        private static Hook<ActionManager.Delegates.UseAction> UseActionHook;
+
+        private static bool UseActionDetour(ActionManager* thisPtr, ActionType actionType, uint actionId, ulong targetId, uint extraParam, ActionManager.UseActionMode mode, uint comboRouteId, bool* outOptAreaTargeted)
         {
-            var ret = UseActionHook.Original(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8);
-            OnUseAction?.Invoke(actionManager, actionType, actionID, targetedActorID, param, useType, pvp, a8, ret);
+            var ret = UseActionHook.Original(thisPtr, actionType, actionId, targetId, extraParam, mode, comboRouteId, outOptAreaTargeted);
+            OnUseAction?.Invoke(thisPtr, actionType, actionId, targetId, extraParam, mode, comboRouteId, outOptAreaTargeted, ret);
             return ret;
         }
 
@@ -63,51 +61,24 @@ namespace NoClippy
             invokeCastInterrupt = false;
         }
 
-        public delegate void ReceiveActionEffectEventDelegate(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail, float oldLock, float newLock);
+        public delegate void ReceiveActionEffectEventDelegate(uint casterEntityId, Character* casterPtr, Vector3* targetPos, ActionEffectHandler.Header* header, ActionEffectHandler.TargetEffects* effects, GameObjectId* targetEntityIds, float oldLock, float newLock);
         public static event ReceiveActionEffectEventDelegate OnReceiveActionEffect;
-        private delegate void ReceiveActionEffectDelegate(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail);
-        private static Hook<ReceiveActionEffectDelegate> ReceiveActionEffectHook;
-        private static void ReceiveActionEffectDetour(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail)
+        private static Hook<ActionEffectHandler.Delegates.Receive> ReceiveActionEffectHook;
+
+        private static void ReceiveActionEffectDetour(uint casterEntityId, Character* casterPtr, Vector3* targetPos, ActionEffectHandler.Header* header, ActionEffectHandler.TargetEffects* effects, GameObjectId* targetEntityIds)
         {
             var oldLock = actionManager->animationLock;
-            ReceiveActionEffectHook.Original(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail);
-            OnReceiveActionEffect?.Invoke(sourceActorID, sourceActor, vectorPosition, effectHeader, effectArray, effectTrail, oldLock, actionManager->animationLock);
+            ReceiveActionEffectHook.Original(casterEntityId, casterPtr, targetPos, header, effects, targetEntityIds);
+            OnReceiveActionEffect?.Invoke(casterEntityId, casterPtr, targetPos, header, effects, targetEntityIds, oldLock, actionManager->animationLock);
         }
 
-        public delegate void UpdateStatusListEventDelegate(StatusList statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID);
-        public static event UpdateStatusListEventDelegate OnUpdateStatusList;
-        private delegate byte UpdateStatusDelegate(nint status, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate);
-        private static Hook<UpdateStatusDelegate> UpdateStatusHook;
-
-        private static byte UpdateStatusDetour(nint statusList, short slot, ushort statusID, float remainingTime, ushort stackParam, uint sourceID, bool individualUpdate)
-        {
-            var statusPtr = (Status*)(statusList + 0x8 + 0xC * slot);
-            var oldStatusID = statusPtr->StatusId;
-            var oldSourceID = statusPtr->SourceObject.ObjectId;
-            var ret = UpdateStatusHook.Original(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
-
-            if (DalamudApi.ObjectTable.LocalPlayer is not { } p || statusList.ToInt64() != p.StatusList.Address.ToInt64()) return ret;
-
-            //OnUpdateStatus?.Invoke(statusList, slot, statusID, remainingTime, stackParam, sourceID, individualUpdate);
-
-            if (statusID != 0 && (oldStatusID != statusID || oldSourceID != sourceID))
-                OnUpdateStatusList?.Invoke(p.StatusList, slot, statusID, remainingTime, stackParam, sourceID);
-
-            if (!individualUpdate && slot == p.StatusList.Length - 1)
-                OnUpdateStatusList?.Invoke(p.StatusList, -1, 0, 0, 0, 0);
-
-            return ret;
-        }
-
-        [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
-        private delegate bool SendPacketDelegate(nint zoneClient, nint packet, uint a3, uint a4, bool a5);
-        private static Hook<SendPacketDelegate> SendPacketHook;
+        private static Hook<ZoneClient.Delegates.SendPacket> SendPacketHook;
 
         public delegate void NetworkMessageEventDelegate();
         public static event NetworkMessageEventDelegate OnNetworkMessageDelegate;
 
 
-        private static bool SendPacketDetour(nint zoneClient, nint packet, uint a3, uint a4, bool a5)
+        private static bool SendPacketDetour(ZoneClient* zoneClient, nint packet, uint a3, uint a4, bool a5)
         {
             OnNetworkMessageDelegate?.Invoke();
             return SendPacketHook.Original(zoneClient, packet, a3, a4, a5);
@@ -117,13 +88,12 @@ namespace NoClippy
         {
             actionManager = (Structures.ActionManager*)ActionManager.Instance();
 
-            UseActionHook = DalamudApi.GameInteropProvider.HookFromAddress<UseActionDelegate>((nint)ActionManager.MemberFunctionPointers.UseAction, UseActionDetour);
+            UseActionHook = DalamudApi.GameInteropProvider.HookFromAddress<ActionManager.Delegates.UseAction>((nint)ActionManager.MemberFunctionPointers.UseAction, UseActionDetour);
             UseActionLocationHook = DalamudApi.GameInteropProvider.HookFromAddress<UseActionLocationDelegate>((nint)ActionManager.MemberFunctionPointers.UseActionLocation, UseActionLocationDetour);
             CastBeginHook = DalamudApi.GameInteropProvider.HookFromAddress<CastBeginDelegate>(DalamudApi.SigScanner.ScanText("40 53 57 48 81 EC ?? ?? ?? ?? 48 8B FA 8B D1"), CastBeginDetour); // Bad sig, found within ActorCast packet
             CastInterruptHook = DalamudApi.GameInteropProvider.HookFromAddress<CastInterruptDelegate>(DalamudApi.SigScanner.ScanText("48 8B C4 48 83 EC 48 48 89 58 08"), CastInterruptDetour);
-            ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ReceiveActionEffectDelegate>(DalamudApi.SigScanner.ScanModule("40 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24"), ReceiveActionEffectDetour);
-            UpdateStatusHook = DalamudApi.GameInteropProvider.HookFromAddress<UpdateStatusDelegate>(DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 40 0A F0 48 8D 5B"), UpdateStatusDetour);
-            SendPacketHook = DalamudApi.GameInteropProvider.HookFromAddress<SendPacketDelegate>((nint)ZoneClient.MemberFunctionPointers.SendPacket, SendPacketDetour);
+            ReceiveActionEffectHook = DalamudApi.GameInteropProvider.HookFromAddress<ActionEffectHandler.Delegates.Receive>(ActionEffectHandler.Addresses.Receive.Value, ReceiveActionEffectDetour);
+            SendPacketHook = DalamudApi.GameInteropProvider.HookFromAddress<ZoneClient.Delegates.SendPacket>((nint)ZoneClient.MemberFunctionPointers.SendPacket, SendPacketDetour);
 
             UseActionHook.Enable();
             UseActionLocationHook.Enable();
@@ -131,7 +101,6 @@ namespace NoClippy
             CastInterruptHook.Enable();
             ReceiveActionEffectHook.Enable();
             SendPacketHook.Enable();
-            //UpdateStatusHook.Enable();
         }
 
         public static event Action OnUpdate;
@@ -149,14 +118,10 @@ namespace NoClippy
             OnCastInterrupt = null;
             ReceiveActionEffectHook?.Dispose();
             OnReceiveActionEffect = null;
-            UpdateStatusHook?.Dispose();
-            OnUpdateStatusList = null;
             SendPacketHook?.Dispose();
             OnNetworkMessageDelegate = null;
 
             OnUpdate = null;
-
-            //DefaultClientAnimationLock = 0.5f;
         }
     }
 }

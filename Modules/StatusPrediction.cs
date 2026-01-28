@@ -452,7 +452,6 @@ namespace NoClippy.Modules
         {
             Game.OnUseActionLocation += UseActionLocation;
             Game.OnUpdate += Update;
-            Game.OnUpdateStatusList += UpdateStatusList;
             Game.OnCastBegin += CastBegin;
             Game.OnCastInterrupt += CastInterrupt;
         }
@@ -461,7 +460,6 @@ namespace NoClippy.Modules
         {
             Game.OnUseActionLocation -= UseActionLocation;
             Game.OnUpdate -= Update;
-            Game.OnUpdateStatusList -= UpdateStatusList;
             Game.OnCastBegin -= CastBegin;
             Game.OnCastInterrupt -= CastInterrupt;
         }
