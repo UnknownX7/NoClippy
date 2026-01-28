@@ -1,10 +1,6 @@
 using System;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using Dalamud.Game.ClientState.Statuses;
-using Dalamud.Game.Network;
 using Dalamud.Hooking;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Application.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
