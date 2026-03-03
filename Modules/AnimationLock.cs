@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using static NoClippy.NoClippy;
 
 namespace NoClippy
@@ -98,11 +101,11 @@ namespace NoClippy.Modules
         private void CastBegin(ulong objectID, nint packetData) => isCasting = true;
         private void CastInterrupt(nint actionManager) => isCasting = false;
 
-        private unsafe void ReceiveActionEffect(int sourceActorID, nint sourceActor, nint vectorPosition, nint effectHeader, nint effectArray, nint effectTrail, float oldLock, float newLock)
+        private unsafe void ReceiveActionEffect(uint casterEntityId, Character* casterPtr, Vector3* targetPos, ActionEffectHandler.Header* header, ActionEffectHandler.TargetEffects* effects, GameObjectId* targetEntityIds, float oldLock, float newLock)
         {
             try
             {
-                if (oldLock == newLock || sourceActor != DalamudApi.ObjectTable.LocalPlayer?.Address) return;
+                if (oldLock == newLock || (nint)casterPtr != DalamudApi.ObjectTable.LocalPlayer?.Address) return;
 
                 // Ignore cast locks (caster tax, teleport, lb)
                 if (isCasting)
@@ -133,8 +136,8 @@ namespace NoClippy.Modules
                 //     PrintError($"Unexpected lock of {F2MS(newLock)} ms, temporary dry run has been enabled. Please disable any other programs or plugins that may be affecting the animation lock.");
                 // }
 
-                var sequence = *(ushort*)(effectHeader + 0x18); // This is 0 for some special actions
-                var actionID = *(ushort*)(effectHeader + 0x1C);
+                var sequence = header->SourceSequence; // This is 0 for some special actions
+                var actionID = header->SpellId;
                 var appliedLock = appliedAnimationLocks.GetValueOrDefault(sequence, 0.5f);
 
                 if (sequence == Game.actionManager->currentSequence)
@@ -196,9 +199,8 @@ namespace NoClippy.Modules
             catch { PrintError("Error in AnimationLock Module"); }
         }
 
-        private void NetworkMessage(NetworkMessageDirection direction)
+        private void NetworkMessage()
         {
-            if (direction != NetworkMessageDirection.ZoneUp) return;
             intervalPackets[intervalPacketsIndex]++;
         }
 
@@ -250,7 +252,7 @@ namespace NoClippy.Modules
             ImGui.TextUnformatted($"Reduced a total time of {TimeSpan.FromSeconds(Config.TotalAnimationLockReduction):d\\:hh\\:mm\\:ss} from {Config.TotalActionsReduced} actions");
         }
 
-        public override void Enable()
+        public override unsafe void Enable()
         {
             Game.OnUseActionLocation += UseActionLocation;
             Game.OnCastBegin += CastBegin;
@@ -260,7 +262,7 @@ namespace NoClippy.Modules
             Game.OnNetworkMessageDelegate += NetworkMessage;
         }
 
-        public override void Disable()
+        public override unsafe void Disable()
         {
             Game.OnUseActionLocation -= UseActionLocation;
             Game.OnCastBegin -= CastBegin;
